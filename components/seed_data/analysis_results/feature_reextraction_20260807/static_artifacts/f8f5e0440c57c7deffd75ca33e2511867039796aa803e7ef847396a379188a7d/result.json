@@ -1,0 +1,66 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "f8f5e0440c57c7deffd75ca33e2511867039796aa803e7ef847396a379188a7d",
+    "sha1": "ab70bbf4fa51ca61d0d914edb2939c1295ce8edc",
+    "md5": "6c22ef51b477adc0edf6069631dc939c",
+    "size": 1393,
+    "file_name": "f8f5e0440c57c7deffd75ca33e2511867039796aa803e7ef847396a379188a7d",
+    "file_type": "ASCII text",
+    "entropy": 4.785,
+    "language": null,
+    "recoverability": "unknown"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "ASCII text",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "unknown",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

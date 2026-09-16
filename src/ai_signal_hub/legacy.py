@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import copy
 import re
-import sys
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -11,16 +11,8 @@ from .config import Settings
 
 
 class LegacyUnavailable(RuntimeError):
+    """Compatibility exception retained for existing API error handling."""
     pass
-
-
-def _add_src(project: Path) -> None:
-    source = project / "src"
-    if not source.is_dir():
-        raise LegacyUnavailable(f"旧项目源码目录不存在: {source}")
-    value = str(source)
-    if value not in sys.path:
-        sys.path.insert(0, value)
 
 
 class LegacyAdapters:
@@ -31,16 +23,17 @@ class LegacyAdapters:
         return {
             "sample_project": {
                 "path": str(self.settings.legacy_sample_project),
-                "available": (self.settings.legacy_sample_project / "src" / "aisig").is_dir(),
+                "available": find_spec("aisig") is not None
+                and (self.settings.legacy_sample_project / "rules" / "llm_rules.yaml").is_file(),
             },
             "report_project": {
                 "path": str(self.settings.legacy_report_project),
-                "available": (self.settings.legacy_report_project / "src" / "report_extractor").is_dir(),
+                "available": find_spec("report_extractor") is not None
+                and (self.settings.legacy_report_project / "schemas" / "report_events_v03.schema.json").is_file(),
             },
         }
 
     def analyze_sample(self, sample_path: Path, artifact_dir: Path) -> dict[str, Any]:
-        _add_src(self.settings.legacy_sample_project)
         from aisig.cli import analyze
 
         analyze(
@@ -51,7 +44,7 @@ class LegacyAdapters:
         )
         result_path = artifact_dir / "result.json"
         if not result_path.is_file():
-            raise RuntimeError("旧样本分析器未生成 result.json")
+            raise RuntimeError("内置样本分析器未生成 result.json")
         result = json.loads(result_path.read_text(encoding="utf-8"))
         from .sample_rules import apply_sample_rules
         from .prompt_recovery import MAX_FILE, recover_prompt_features
@@ -118,7 +111,6 @@ class LegacyAdapters:
         target_name: str | None = None,
         target_aliases: list[str] | None = None,
     ) -> dict[str, Any]:
-        _add_src(self.settings.legacy_report_project)
         from .report_llm import extract_report_with_llm
 
         if not use_llm:
@@ -142,7 +134,6 @@ class LegacyAdapters:
         event_id: str | None = None,
         sample_family: str | None = None,
     ) -> dict[str, Any]:
-        _add_src(self.settings.legacy_report_project)
         from report_extractor.event_compare_v3 import compare_event_to_sample
 
         # Support both historic bare digests and current sha256:<digest> without

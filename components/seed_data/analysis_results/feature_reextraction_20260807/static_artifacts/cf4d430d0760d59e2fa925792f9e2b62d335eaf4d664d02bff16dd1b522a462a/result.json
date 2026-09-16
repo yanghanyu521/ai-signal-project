@@ -1,0 +1,190 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "cf4d430d0760d59e2fa925792f9e2b62d335eaf4d664d02bff16dd1b522a462a",
+    "sha1": "a0a7ac2316ce779700a56ea65314ff229ee5451b",
+    "md5": "40b179e334fd12241823e4ad353bb96d",
+    "size": 19473,
+    "file_name": "cf4d430d0760d59e2fa925792f9e2b62d335eaf4d664d02bff16dd1b522a462a",
+    "file_type": "Python script, ASCII text executable, with very long lines (360)",
+    "entropy": 5.6078,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "Python script, ASCII text executable, with very long lines (360)",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 15338,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 15955,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "raw_byte_scan",
+          "offset": 15356,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [
+        {
+          "offset": 14927,
+          "source": "strings:ascii",
+          "text_hash": "sha256:0d28a92ed736a82ad675537aa0923851d4d4f3a31c69ba316c2be3c3d97b69c9",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:471c4f1341b60287",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "'content': 'Make a list of commands to create folder C:\\\\Programdata\\\\info and to gather computer information, hardware information, process and services information, networks information, AD domain information, to execute in one line and a",
+          "features": {
+            "output_only": true
+          }
+        },
+        {
+          "offset": 15642,
+          "source": "strings:ascii",
+          "text_hash": "sha256:d2920a605e3de30d142067efc015693818b63c5dbc56d9c1a451a19b252a6df1",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:177ccd32c1f39283",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "'content': 'Make a list of commands to copy recursively different office and pdf/txt documents in user Documents,Downloads and Desktop folders to a folder c:\\\\Programdata\\\\info\\\\ to execute in one line. Return only command, without markdown",
+          "features": {
+            "output_only": true,
+            "code_only": true
+          }
+        }
+      ],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": true,
+        "code_only": true,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 450,
+        "blank_ratio": 0.031,
+        "comment_ratio": 0.7,
+        "mean_identifier_length": 7.38,
+        "naming_style": {
+          "snake_case": 0.202,
+          "camel_case": 0.0,
+          "other": 0.798
+        },
+        "function_count": 6,
+        "exception_handler_count": 0,
+        "exception_handler_ratio": 0.0,
+        "ast_node_counts": {
+          "Constant": 380,
+          "Load": 186,
+          "Name": 183,
+          "Call": 69,
+          "Store": 51,
+          "Assign": 43,
+          "Expr": 41,
+          "Attribute": 41,
+          "BinOp": 14,
+          "Add": 14,
+          "keyword": 14,
+          "alias": 11,
+          "Return": 10,
+          "Import": 9,
+          "Dict": 8,
+          "Subscript": 7,
+          "FunctionDef": 6,
+          "arguments": 6,
+          "Pass": 6,
+          "For": 5
+        }
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Alibaba/Qwen",
+      "family": "Qwen",
+      "model": "Qwen2.5-Coder-32B-Instruct",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "qwen25_coder_32b",
+        "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "normalized": {
+          "vendor": "Alibaba/Qwen",
+          "family": "Qwen",
+          "model": "Qwen2.5-Coder-32B-Instruct"
+        },
+        "source": "strings:ascii",
+        "offset": 15338,
+        "confidence": 0.99,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

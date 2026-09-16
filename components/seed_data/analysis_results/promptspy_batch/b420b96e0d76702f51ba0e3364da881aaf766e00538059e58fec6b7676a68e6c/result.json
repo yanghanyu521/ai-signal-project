@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "b420b96e0d76702f51ba0e3364da881aaf766e00538059e58fec6b7676a68e6c",
+    "sha1": "375d7423e63c8f5f2cc814e8cfe697ba25168afa",
+    "md5": "d35341798bd6ce066d3bea0a6acc18f3",
+    "size": 9250064,
+    "file_name": "sample.bin",
+    "file_type": "Android package (APK), with AndroidManifest.xml Zip archive data, at least v2.0 to extract, compression method=deflate",
+    "entropy": 7.56,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "Android package (APK), with AndroidManifest.xml Zip archive data, at least v2.0 to extract, compression method=deflate",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      },
+      "apk": {
+        "status": "scanned",
+        "member_count": 981,
+        "members_scanned": 981,
+        "members_skipped": 0,
+        "bytes_scanned": 16928141,
+        "limits": {
+          "max_members": 5000,
+          "max_member_bytes": 33554432,
+          "max_total_bytes": 125829120,
+          "max_compression_ratio": 200
+        }
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

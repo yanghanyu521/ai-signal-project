@@ -1,0 +1,129 @@
+{
+  "schema_version": "0.3",
+  "report": {
+    "report_id": "report:1a00154054eba4426738",
+    "title": "ESET 研究发现 PromptSpy，首个利用生成式人工智能的 Android 威胁 | | ESET",
+    "publisher": null,
+    "publication_date": {
+      "value": null,
+      "precision": "unknown",
+      "raw": null
+    },
+    "url": null,
+    "file_name": "ESET 研究发现 PromptSpy，首个利用生成式人工智能的 Android 威胁 _ _ ESET.html",
+    "content_type": "html",
+    "language": "zh-CN",
+    "content_sha256": "61a5be490d800a06783e61e14fbe46ce5291511c2ad897972038aa088a397991"
+  },
+  "events": [
+    {
+      "event_id": "event:8bbd92f1a6bba6491240",
+      "identity": {
+        "event_name": "PromptSpy",
+        "aliases": [],
+        "event_type": "malware_operation",
+        "evidence_ids": [
+          "evidence:0b5a2818c276f8f86a2b"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "proof_of_concept",
+        "evidence_ids": [
+          "evidence:3fab564aeb66a70ed055"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:08c3e038bde178922866",
+          "family": "PromptSpy",
+          "aliases": [],
+          "sha256": [],
+          "file_names": [],
+          "role": null,
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:0b5a2818c276f8f86a2b"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [
+        {
+          "name": "阿根廷用户",
+          "sector": null,
+          "country_or_region": "Argentina",
+          "status": "targeted",
+          "evidence_ids": [
+            "evidence:3fab564aeb66a70ed055"
+          ]
+        }
+      ],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:0b5a2818c276f8f86a2b",
+          "block_id": "block:601d4105c037abe62efa",
+          "page": null,
+          "section": "ESET 研究发现 PromptSpy，这是首个利用生成式人工智能的安卓威胁。",
+          "excerpt": "ESET 研究发现 PromptSpy，这是首个利用生成式人工智能的安卓威胁。",
+          "excerpt_sha256": "fd2f9c291f4c6e467bf0e630b28e1e50960834814c91f58fbd4442ddd065bf2f"
+        },
+        {
+          "evidence_id": "evidence:3fab564aeb66a70ed055",
+          "block_id": "block:485e48351f3b0e725ab0",
+          "page": null,
+          "section": "ESET 研究发现 PromptSpy，这是首个利用生成式人工智能的安卓威胁。",
+          "excerpt": "根据语言本地化线索和分析中观察到的分布向量，此次攻击活动似乎以盈利为目的，并且主要针对阿根廷用户。然而，ESET 遥测数据中尚未发现 PromptSpy，这可能表明它仍处于概念验证阶段。",
+          "excerpt_sha256": "cbebf9199c92d224750e1e309b93764d58284d3b96a5c96ce8d72ab18b1c9813"
+        }
+      ]
+    }
+  ],
+  "extraction": {
+    "pipeline_version": "0.3",
+    "extractors": [
+      {
+        "name": "document-parser",
+        "version": "html"
+      },
+      {
+        "name": "deterministic-event-index",
+        "version": "0.3"
+      },
+      {
+        "name": "evidence-field-rules",
+        "version": "0.3"
+      }
+    ],
+    "validation_status": "passed",
+    "review_status": "not_reviewed",
+    "errors": []
+  }
+}

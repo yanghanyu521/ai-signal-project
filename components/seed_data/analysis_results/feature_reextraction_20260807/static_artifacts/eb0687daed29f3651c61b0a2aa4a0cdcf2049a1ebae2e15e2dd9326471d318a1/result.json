@@ -1,0 +1,163 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "eb0687daed29f3651c61b0a2aa4a0cdcf2049a1ebae2e15e2dd9326471d318a1",
+    "sha1": "ca20a6271df9eb8fa9facb6be92c8dcbc776add8",
+    "md5": "a826706d4b3ee6ba30891b2081708669",
+    "size": 4405310,
+    "file_name": "eb0687daed29f3651c61b0a2aa4a0cdcf2049a1ebae2e15e2dd9326471d318a1",
+    "file_type": "ASCII text, with very long lines (2021), with CRLF line terminators",
+    "entropy": 5.8815,
+    "language": "vbscript",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "vbscript",
+      "file_type": "ASCII text, with very long lines (2021), with CRLF line terminators",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "google_gemini_15_flash_latest",
+          "value": "gemini-1.5-flash-latest",
+          "normalized": {
+            "vendor": "Google",
+            "family": "Gemini",
+            "model": "gemini-1.5-flash-latest"
+          },
+          "source": "strings:ascii",
+          "offset": 4396142,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "endpoint",
+          "rule_id": "google_generative_language",
+          "value": "generativelanguage.googleapis.com",
+          "normalized": {
+            "family": "Gemini",
+            "provider": "Google Gemini API"
+          },
+          "source": "strings:ascii",
+          "offset": 4396142,
+          "confidence": 0.98,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "google_gemini_15_flash_latest",
+          "value": "gemini-1.5-flash-latest",
+          "normalized": {
+            "vendor": "Google",
+            "family": "Gemini",
+            "model": "gemini-1.5-flash-latest"
+          },
+          "source": "raw_byte_scan",
+          "offset": 4396212,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "endpoint",
+          "rule_id": "google_generative_language",
+          "value": "generativelanguage.googleapis.com",
+          "normalized": {
+            "family": "Gemini",
+            "provider": "Google Gemini API"
+          },
+          "source": "raw_byte_scan",
+          "offset": 4396164,
+          "confidence": 0.98,
+          "evidence_level": "direct"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [
+        {
+          "offset": 4396274,
+          "source": "strings:ascii",
+          "text_hash": "sha256:5c0505f1d247865f89d27f90e41277ad1a21cc95f51cf5e9815f9415399f5ad2",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:91274e0caf6656dd",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "generatedPrompt = \"You are an expert VBScript obfuscator. Your task is to generate a new, fully functional VBScript. \" & _",
+          "features": {
+            "role_definition": true
+          }
+        }
+      ],
+      "structural_features": {
+        "role_definition": true,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "vbscript",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 2410,
+        "blank_ratio": 0.016,
+        "comment_ratio": 0.008,
+        "mean_identifier_length": 27.34,
+        "naming_style": {
+          "snake_case": 0.0,
+          "camel_case": 0.305,
+          "other": 0.695
+        },
+        "function_count": 4
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Google",
+      "family": "Gemini",
+      "model": "gemini-1.5-flash-latest",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "google_gemini_15_flash_latest",
+        "value": "gemini-1.5-flash-latest",
+        "normalized": {
+          "vendor": "Google",
+          "family": "Gemini",
+          "model": "gemini-1.5-flash-latest"
+        },
+        "source": "strings:ascii",
+        "offset": 4396142,
+        "confidence": 0.99,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

@@ -1,0 +1,102 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "3afbb9fe6bab2cad83c52a3f1a12e0ce979fe260c55ab22a43c18035ff7d7f38",
+    "sha1": "37aa8eba4277dbd60d8ec811d58e023c509910b3",
+    "md5": "38ce7b7dcb66e9f0580e427b8c90d107",
+    "size": 63386,
+    "file_name": "3afbb9fe6bab2cad83c52a3f1a12e0ce979fe260c55ab22a43c18035ff7d7f38",
+    "file_type": "ASCII text, with very long lines (10099)",
+    "entropy": 4.9873,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "ASCII text, with very long lines (10099)",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 23,
+        "blank_ratio": 0.087,
+        "comment_ratio": 0.0,
+        "mean_identifier_length": 12.06,
+        "naming_style": {
+          "snake_case": 0.011,
+          "camel_case": 0.887,
+          "other": 0.102
+        },
+        "function_count": 1,
+        "exception_handler_count": 0,
+        "exception_handler_ratio": 0.0,
+        "ast_node_counts": {
+          "Load": 716,
+          "Name": 698,
+          "Call": 417,
+          "BinOp": 329,
+          "Add": 329,
+          "Constant": 211,
+          "Store": 54,
+          "Assign": 40,
+          "Subscript": 36,
+          "Attribute": 29,
+          "arg": 7,
+          "Tuple": 5,
+          "arguments": 4,
+          "Expr": 3,
+          "Lambda": 3,
+          "Dict": 2,
+          "List": 2,
+          "Module": 1,
+          "FunctionDef": 1,
+          "Return": 1
+        }
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

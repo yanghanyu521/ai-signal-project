@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-signal-hub"
-version = "0.3.0"
+version = "0.4.0"
 description = "恶意样本静态 AI 信号、报告事件证据、知识库与统计报告统一平台"
 requires-python = ">=3.11"
 dependencies = [
@@ -31,6 +31,8 @@ dev = ["pytest>=8.3", "pytest-cov>=6"]
 [project.scripts]
 ai-signal-api = "ai_signal_hub.main:run"
 ai-signal-import = "ai_signal_hub.importer:main"
+aisig = "aisig.cli:main"
+reportctl = "report_extractor.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

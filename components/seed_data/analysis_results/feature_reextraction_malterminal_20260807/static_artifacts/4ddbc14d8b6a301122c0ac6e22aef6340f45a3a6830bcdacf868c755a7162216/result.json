@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "4ddbc14d8b6a301122c0ac6e22aef6340f45a3a6830bcdacf868c755a7162216",
+    "sha1": "66f94cc021a4bfea80c06608603db4916f4a2b66",
+    "md5": "cf5fd26cb2ddd7c63797594b904d601e",
+    "size": 24276,
+    "file_name": "4ddbc14d8b6a301122c0ac6e22aef6340f45a3a6830bcdacf868c755a7162216",
+    "file_type": "Python script, ASCII text executable, with very long lines (24155)",
+    "entropy": 4.2865,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "Python script, ASCII text executable, with very long lines (24155)",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 3,
+        "blank_ratio": 0.0,
+        "comment_ratio": 0.333,
+        "mean_identifier_length": 9.0,
+        "naming_style": {
+          "snake_case": 1.0,
+          "camel_case": 0.0,
+          "other": 0.0
+        },
+        "function_count": 0,
+        "exception_handler_count": 0,
+        "exception_handler_ratio": 0.0,
+        "ast_node_counts": {
+          "Name": 3,
+          "Load": 3,
+          "Module": 1,
+          "ImportFrom": 1,
+          "Expr": 1,
+          "alias": 1,
+          "Call": 1,
+          "Constant": 1
+        }
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

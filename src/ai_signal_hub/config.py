@@ -20,10 +20,13 @@ class Settings:
     workspace_root: Path = WORKSPACE_ROOT
     data_dir: Path = _path_env("AI_SIGNAL_HUB_DATA_DIR", PROJECT_ROOT / "data")
     legacy_sample_project: Path = _path_env(
-        "AI_SIGNAL_HUB_LEGACY_SAMPLE_PROJECT", WORKSPACE_ROOT / "ai_signal_demo"
+        "AI_SIGNAL_HUB_SAMPLE_COMPONENT_DIR", PROJECT_ROOT / "components" / "ai_signal_demo"
     )
     legacy_report_project: Path = _path_env(
-        "AI_SIGNAL_HUB_LEGACY_REPORT_PROJECT", WORKSPACE_ROOT / "报告信息抽取"
+        "AI_SIGNAL_HUB_REPORT_COMPONENT_DIR", PROJECT_ROOT / "components" / "report_extractor"
+    )
+    seed_data_dir: Path = _path_env(
+        "AI_SIGNAL_HUB_SEED_DATA_DIR", PROJECT_ROOT / "components" / "seed_data"
     )
     max_upload_bytes: int = int(os.getenv("AI_SIGNAL_HUB_MAX_UPLOAD_BYTES", "104857600"))
     host: str = os.getenv("AI_SIGNAL_HUB_HOST", "127.0.0.1")

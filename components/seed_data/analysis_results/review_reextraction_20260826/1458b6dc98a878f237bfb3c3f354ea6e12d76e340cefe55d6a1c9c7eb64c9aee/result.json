@@ -1,0 +1,260 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "1458b6dc98a878f237bfb3c3f354ea6e12d76e340cefe55d6a1c9c7eb64c9aee",
+    "sha1": "161cdcdb46fb8a348aec609a86ff5823752065d2",
+    "md5": "f7cf07f2bf07cfc054ac909d8ae6223d",
+    "size": 7118848,
+    "file_name": "1458b6dc98a878f237bfb3c3f354ea6e12d76e340cefe55d6a1c9c7eb64c9aee",
+    "file_type": "unknown (python-magic unavailable)",
+    "entropy": 6.2586,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "unknown (python-magic unavailable)",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "gpt_oss_20b",
+          "value": "gpt-oss:20b",
+          "normalized": {
+            "vendor": "OpenAI",
+            "family": "gpt-oss",
+            "model": "gpt-oss-20b"
+          },
+          "source": "raw_byte_scan",
+          "offset": 4483192,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "sdk_marker",
+          "rule_id": null,
+          "value": "ollama",
+          "normalized": {
+            "family": "unknown"
+          },
+          "source": "raw_byte_scan",
+          "offset": 3954541,
+          "confidence": 0.9,
+          "evidence_level": "strong_indirect"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "structural_artifacts": [
+        {
+          "type": "conversation_object",
+          "value": "ChatPrompt",
+          "offset": 3332658,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 3336294,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 3343613,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 3346534,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "FullConversation",
+          "offset": 3375764,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 3435249,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 3436338,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatPrompt",
+          "offset": 3862774,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "FullConversation",
+          "offset": 3862981,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 3863005,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatPrompt",
+          "offset": 4007768,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 4007784,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 4885536,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatPrompt",
+          "offset": 4885562,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 4885676,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "conversation_object",
+          "value": "ChatMessage",
+          "offset": 4885726,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "prompt_configuration",
+          "value": "initial_coder_prompt",
+          "offset": 3374289,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "prompt_configuration",
+          "value": "validation_criteria",
+          "offset": 3375070,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "prompt_configuration",
+          "value": "initial_coder_prompt",
+          "offset": 3862793,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "prompt_configuration",
+          "value": "validation_criteria",
+          "offset": 3862914,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "prompt_configuration",
+          "value": "buildValidationPrompt",
+          "offset": 4885007,
+          "source": "raw_byte_scan",
+          "evidence_level": "strong_indirect"
+        }
+      ],
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      },
+      "apk": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "OpenAI",
+      "family": "gpt-oss",
+      "model": "gpt-oss-20b",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "gpt_oss_20b",
+        "value": "gpt-oss:20b",
+        "normalized": {
+          "vendor": "OpenAI",
+          "family": "gpt-oss",
+          "model": "gpt-oss-20b"
+        },
+        "source": "raw_byte_scan",
+        "offset": 4483192,
+        "confidence": 0.99,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

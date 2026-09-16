@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Report Event Extraction v0.2",
+  "type": "object",
+  "required": ["schema_version", "report", "events", "extraction"],
+  "properties": {
+    "schema_version": {"const": "0.2"},
+    "report": {
+      "type": "object",
+      "required": ["report_id", "title", "content_sha256", "source_rows", "seed_hints"],
+      "properties": {
+        "report_id": {"type": "string"},
+        "title": {"type": "string"},
+        "url": {"type": ["string", "null"]},
+        "publisher": {"type": ["string", "null"]},
+        "publication_date": {"type": ["string", "null"]},
+        "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "source_rows": {"type": "array", "items": {"type": "integer"}},
+        "seed_hints": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/event"}
+    },
+    "extraction": {
+      "type": "object",
+      "required": ["pipeline_version", "validation_status", "review_status", "errors"],
+      "properties": {
+        "pipeline_version": {"const": "0.2"},
+        "validation_status": {"enum": ["passed", "warnings", "failed"]},
+        "review_status": {"enum": ["not_reviewed", "needs_review", "reviewed"]},
+        "errors": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "evidenceRef": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "event": {
+      "type": "object",
+      "required": ["event_id", "event_name", "aliases", "event_type", "status", "attribution", "targets", "samples", "ai_signals", "key_behaviors", "limitations", "evidence"],
+      "properties": {
+        "event_id": {"type": "string"},
+        "event_name": {"type": "string"},
+        "aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "event_type": {"type": ["string", "null"]},
+        "status": {"type": ["string", "null"]},
+        "attribution": {
+          "type": "object",
+          "required": ["actor", "country_or_region", "confidence", "evidence_ids"],
+          "properties": {
+            "actor": {"type": ["string", "null"]},
+            "country_or_region": {"type": ["string", "null"]},
+            "confidence": {"enum": ["high", "medium", "low", "not_stated"]},
+            "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+          },
+          "additionalProperties": false
+        },
+        "targets": {"type": "array", "items": {"type": "object", "required": ["name", "sector", "country_or_region", "status", "evidence_ids"], "properties": {"name": {"type": ["string", "null"]}, "sector": {"type": ["string", "null"]}, "country_or_region": {"type": ["string", "null"]}, "status": {"type": ["string", "null"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRef"}}, "additionalProperties": false}},
+        "samples": {"type": "array", "items": {"type": "object", "required": ["family", "aliases", "sha256", "seed_rows", "role", "language", "file_type", "evidence_ids"], "properties": {"family": {"type": "string"}, "aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "sha256": {"type": "array", "items": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}, "uniqueItems": true}, "seed_rows": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true}, "role": {"type": ["string", "null"]}, "language": {"type": ["string", "null"]}, "file_type": {"type": ["string", "null"]}, "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}, "additionalProperties": false}},
+        "ai_signals": {"type": "object", "required": ["toolchain", "prompt", "code_style"], "properties": {
+          "toolchain": {"type": "array", "items": {"type": "object", "required": ["provider", "model", "interface", "purpose", "stage", "evidence_ids"], "properties": {"provider": {"type": ["string", "null"]}, "model": {"type": ["string", "null"]}, "interface": {"type": ["string", "null"]}, "purpose": {"type": ["string", "null"]}, "stage": {"type": ["string", "null"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRef"}}, "additionalProperties": false}},
+          "prompt": {"type": "array", "items": {"type": "object", "required": ["purpose", "summary", "constraints", "effectiveness", "evidence_ids"], "properties": {"purpose": {"type": ["string", "null"]}, "summary": {"type": "string"}, "constraints": {"type": "array", "items": {"type": "string"}}, "effectiveness": {"type": ["string", "null"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRef"}}, "additionalProperties": false}},
+          "code_style": {"type": "array", "items": {"type": "object", "required": ["feature", "assessment", "evidence_ids"], "properties": {"feature": {"type": "string"}, "assessment": {"type": ["string", "null"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRef"}}, "additionalProperties": false}}
+        }, "additionalProperties": false},
+        "key_behaviors": {"type": "array", "items": {"type": "object", "required": ["behavior", "evidence_ids"], "properties": {"behavior": {"type": "string"}, "evidence_ids": {"$ref": "#/$defs/evidenceRef"}}, "additionalProperties": false}},
+        "limitations": {"type": "array", "items": {"type": "object", "required": ["text", "evidence_ids"], "properties": {"text": {"type": "string"}, "evidence_ids": {"$ref": "#/$defs/evidenceRef"}}, "additionalProperties": false}},
+        "evidence": {"type": "array", "items": {"type": "object", "required": ["evidence_id", "source", "block_id", "page", "section", "excerpt", "excerpt_sha256"], "properties": {"evidence_id": {"type": "string"}, "source": {"const": "report"}, "block_id": {"type": "string"}, "page": {"type": ["integer", "null"]}, "section": {"type": ["string", "null"]}, "excerpt": {"type": "string", "minLength": 1}, "excerpt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

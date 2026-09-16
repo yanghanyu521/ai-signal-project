@@ -1,0 +1,4 @@
+' Sanitized fixture; no executable sample content.
+model = "gemini-1.5-flash-latest"
+endpoint = "https://generativelanguage.googleapis.com/v1beta/models"
+instruction = "You are an expert script transformer. Return only the code and rewrite this script."

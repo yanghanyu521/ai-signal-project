@@ -17,10 +17,11 @@ from ai_signal_hub.services import HubService
 @pytest.fixture
 def platform(tmp_path):
     project = Path(__file__).resolve().parents[1]
-    workspace = project.parent
-    settings = Settings(project_root=project, workspace_root=workspace, data_dir=tmp_path / "data",
-                        legacy_sample_project=workspace / "ai_signal_demo",
-                        legacy_report_project=workspace / "报告信息抽取", max_upload_bytes=10 * 1024 * 1024)
+    settings = Settings(project_root=project, workspace_root=project.parent, data_dir=tmp_path / "data",
+                        legacy_sample_project=project / "components" / "ai_signal_demo",
+                        legacy_report_project=project / "components" / "report_extractor",
+                        seed_data_dir=project / "components" / "seed_data",
+                        max_upload_bytes=10 * 1024 * 1024)
     settings.ensure_directories()
     database = Database(settings.database_path)
     database.initialize()

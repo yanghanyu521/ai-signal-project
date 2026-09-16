@@ -1,0 +1,212 @@
+{
+  "schema_version": "0.3",
+  "report": {
+    "report_id": "report:db3df857bc242099bff4",
+    "title": "A Slopoly start to AI-enhanced ransomware attacks | IBM",
+    "publisher": null,
+    "publication_date": {
+      "value": "2026-03-12",
+      "precision": "day",
+      "raw": "2026-03-12"
+    },
+    "url": null,
+    "file_name": "A Slopoly start to AI-enhanced ransomware attacks _ IBM.html",
+    "content_type": "html",
+    "language": "en",
+    "content_sha256": "1ef52689487353f376d511cd2003e3f68fcf180a380f6c0a5f6058163154a756"
+  },
+  "events": [
+    {
+      "event_id": "event:5349d3676895e92beaf6",
+      "identity": {
+        "event_name": "SLOPOLY",
+        "aliases": [],
+        "event_type": "ransomware",
+        "evidence_ids": [
+          "evidence:42208d306f397e39961c"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "observed_in_operations",
+        "evidence_ids": [
+          "evidence:42208d306f397e39961c"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:37b6c966f8dd6fce101c",
+          "family": "SLOPOLY",
+          "aliases": [],
+          "sha256": [
+            "0884e5590bdf3763f8529453fbd24ee46a3a460bba4c2da5b0141f5ec6a35675"
+          ],
+          "file_names": [],
+          "role": "ransomware",
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "exact_sample",
+          "evidence_ids": [
+            "evidence:42208d306f397e39961c",
+            "evidence:d20a68e072513765701c"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": [
+          {
+            "name": "Hive0163",
+            "aliases": [],
+            "actor_type": "cybercrime",
+            "country_or_region": null,
+            "confidence": "not_stated",
+            "basis": [
+              "report_author_assessment"
+            ],
+            "limitations": [],
+            "evidence_ids": [
+              "evidence:42208d306f397e39961c"
+            ]
+          }
+        ]
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "LLM",
+            "provider": null,
+            "family": "LLM",
+            "model": null,
+            "service": null,
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "unknown",
+            "purpose": null,
+            "stage": null,
+            "evidence_ids": [
+              "evidence:de1c3b0a143eeff80afc"
+            ]
+          }
+        ],
+        "prompts": [
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": null,
+            "structural_features": {
+              "role_definition": false,
+              "output_only": false,
+              "code_only": false,
+              "single_line_command": false,
+              "self_modification": false,
+              "evasion": false,
+              "jailbreak": false,
+              "safety_framing": false
+            },
+            "constraints": [],
+            "target_model": null,
+            "effectiveness": "unknown",
+            "evidence_ids": [
+              "evidence:7ee00abb60202c1b9c18",
+              "evidence:c69c45a8b0a54a37d676"
+            ]
+          }
+        ],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [
+        {
+          "type": "data_exfiltration",
+          "status": "confirmed",
+          "description": "报告描述了数据外传",
+          "evidence_ids": [
+            "evidence:42208d306f397e39961c"
+          ]
+        }
+      ],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:42208d306f397e39961c",
+          "block_id": "block:489a726ce79386b5d814",
+          "page": null,
+          "section": "A Slopoly start to AI-enhanced ransomware attacks",
+          "excerpt": "In early 2026, IBM X-Force discovered a likely AI-generated novel malware which we are dubbing “Slopoly,” used during a ransomware attack. The operators are part of a group tracked as Hive0163, whose main objective is extortion through large-scale data exfiltration and ransomware. Evidence of AI adoption among high-profile cybercrime groups signals the start of a fundamental shift of dynamics within the threat landscape. Although still relatively unspectacular, AI-generated malware such as Slopoly shows how easily threat actors can weaponize AI to develop new malware frameworks in a fraction of the time it used to take.",
+          "excerpt_sha256": "5bcfaf173aa81a3f4150831f17be8c16d7c2bc72128bb330e7441d9b7a73b99c"
+        },
+        {
+          "evidence_id": "evidence:d20a68e072513765701c",
+          "block_id": "block:d566a330f538861eed02",
+          "page": null,
+          "section": "Recommendations and IoCs",
+          "excerpt": "Indicator Indicator type Context 0884e5590bdf3763f8529453fbd24ee46a3a460bba4c2da5b0141f5ec6a35675 SHA256 Redacted Slopoly script (uploaded to VirusTotal by X-Force) plurfestivalgalaxy[.]com Domain Slopoly C2 server domain (no longer active) 94[.]156[.]181[.]89 IPv4 Slopoly C2 server IP address 77[.]42[.]75[.]119 IPv4 C2 server associated with Hive0163 23[.]227[.]203[.]123 IPv4 C2 server associated with Hive0163 172[.]86[.]68[.]64 IPv4 C2 server associated with Hive0163 bridal-custody-private-bodies[.]trycloudflare[.]com Domain C2 server associated with Hive0163 corner-teacher-guam-characterization[.]trycloudflare[.]com Domain C2 server associated with Hive0163 yen-hansen-cartoon-aims[.]trycl",
+          "excerpt_sha256": "1a7e6fee9a68077ad5743ced665c5766b170ad167b135ee8c7756105416a8bd6"
+        },
+        {
+          "evidence_id": "evidence:de1c3b0a143eeff80afc",
+          "block_id": "block:b02272a293a2b932205d",
+          "page": null,
+          "section": "“Slopoly,” a likely LLM-generated C2 framework",
+          "excerpt": "“Slopoly,” a likely LLM-generated C2 framework",
+          "excerpt_sha256": "dc0dbc6ab0a4fcdd2cd276204ca14b1542799c31be3eba018dcfba7eb518d1f8"
+        },
+        {
+          "evidence_id": "evidence:7ee00abb60202c1b9c18",
+          "block_id": "block:4f84f64e199b98838c31",
+          "page": null,
+          "section": "Infection diagram",
+          "excerpt": "The intrusion observed by X-Force began with a successful ClickFix attack. ClickFix is a social engineering technique , which uses various methods to manipulate users into unknowingly executing a malicious PowerShell script, by copying it into the Windows Run dialog box. Often, victims are confronted with a CAPTCHA-like verification page, which stores a malicious script into the clipboard and prompting them to press the keyboard commands “Win+R” (open Windows Run), followed by “Ctrl+V” (paste clipboard) and “Enter” (execute script). This initial access enabled the deployment of further payloads as shown in the simplified infection chain below:",
+          "excerpt_sha256": "ad4a029c96d858edcc050ac4a3503b5267b09c3e6941e4c8899b46c0eb1f8a59"
+        },
+        {
+          "evidence_id": "evidence:c69c45a8b0a54a37d676",
+          "block_id": "block:3c3ec11ea875ac732234",
+          "page": null,
+          "section": "The age of ephemeral malware",
+          "excerpt": "d AI-integrated malware, which allow models to make decisions during all phases of the attack chain or during development and testing of advanced C2 frameworks. These technological improvements are already being adopted in singular cases, either by highly-capable and well-resourced actors or as proof-of-concepts ( PromptSpy , PromptLock , PROMPTFLUX , VoidLink ). Similarly to the first stage of AI adoption, threat actors will integrate these into their attacks at varying timelines. While Hive0163 may still be in an early phase of AI adoption, the future potential of state-of-the-art AI technologies in the hands of an already highly disruptive threat actor poses an imminent risk to defenders.",
+          "excerpt_sha256": "c0d030debb8ec36b1cd942fb429071270296e68277a8b42ddf45c57ad428b2a1"
+        }
+      ]
+    }
+  ],
+  "extraction": {
+    "pipeline_version": "0.3",
+    "extractors": [
+      {
+        "name": "document-parser",
+        "version": "html"
+      },
+      {
+        "name": "deterministic-event-index",
+        "version": "0.3"
+      },
+      {
+        "name": "evidence-field-rules",
+        "version": "0.3"
+      }
+    ],
+    "validation_status": "passed",
+    "review_status": "not_reviewed",
+    "errors": []
+  }
+}

@@ -9,7 +9,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ai_signal_hub import report_llm
-from ai_signal_hub.legacy import _add_src
 from conftest import empty_value, model_event, with_review, empty_review
 
 
@@ -23,7 +22,6 @@ def response(event, finish="stop"):
 
 def test_full_text_has_no_rule_gate_or_14000_character_cutoff(platform, report_model, monkeypatch):
     service, _ = platform
-    _add_src(service.settings.legacy_report_project)
     import report_extractor.event_pipeline_v3 as old
 
     def forbidden(*args, **kwargs):

@@ -1,0 +1,144 @@
+{
+  "schema_version": "0.3",
+  "report": {
+    "report_id": "report:914f6477837517454b1e",
+    "title": "ESET 研究发现首个已知的 AI 驱动型勒索软件",
+    "publisher": null,
+    "publication_date": {
+      "value": null,
+      "precision": "unknown",
+      "raw": null
+    },
+    "url": null,
+    "file_name": "ESET 研究发现首个已知的 AI 驱动型勒索软件.html",
+    "content_type": "html",
+    "language": "zh-CN",
+    "content_sha256": "224db457e70a45cbb19d777a2510d9a3b5de0e77adaf3fdc5428b33c03eaefb5"
+  },
+  "events": [
+    {
+      "event_id": "event:f0c74752666a78ea649a",
+      "identity": {
+        "event_name": "PromptLock",
+        "aliases": [],
+        "event_type": "ransomware",
+        "evidence_ids": [
+          "evidence:aefcb78851854da7ecc6"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "proof_of_concept",
+        "evidence_ids": [
+          "evidence:1f0ee5cfdcb083030239"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:1d8dd2e88c89a27b3452",
+          "family": "PromptLock",
+          "aliases": [],
+          "sha256": [],
+          "file_names": [],
+          "role": null,
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:aefcb78851854da7ecc6"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "gpt-oss-20b",
+            "provider": "OpenAI",
+            "family": "GPT-OSS",
+            "model": "gpt-oss-20b",
+            "service": "Ollama API",
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "local_model",
+            "purpose": null,
+            "stage": null,
+            "evidence_ids": [
+              "evidence:96a8c995c1df200d3ac4"
+            ]
+          }
+        ],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:aefcb78851854da7ecc6",
+          "block_id": "block:fdce1a6f084cea1baf68",
+          "page": null,
+          "section": "ESET 研究发现首个已知的 AI 驱动型勒索软件",
+          "excerpt": "PromptLock 的发现表明，恶意使用人工智能模型可能会极大地增强勒索软件和其他威胁。",
+          "excerpt_sha256": "47bc31c5410ce9b95fe1fd4f47f663a14749a2c792856717b0452cfcb6ef771b"
+        },
+        {
+          "evidence_id": "evidence:1f0ee5cfdcb083030239",
+          "block_id": "block:aa07688a4e9b763078f4",
+          "page": null,
+          "section": "ESET 研究发现首个已知的 AI 驱动型勒索软件",
+          "excerpt": "虽然 PromptLock 并未在实际攻击中被发现，反而被认为是概念验证 (PoC) 或正在开发中的产品，但 ESET 的发现表明，恶意使用公开可用的 AI 工具可能会极大地增强勒索软件和其他普遍存在的网络威胁。",
+          "excerpt_sha256": "70a325ab99853e6f8580005d8cdd1bacb585367adc42abfcfd4d868e77a6ef1e"
+        },
+        {
+          "evidence_id": "evidence:96a8c995c1df200d3ac4",
+          "block_id": "block:821dae4af32b06c167dd",
+          "page": null,
+          "section": "ESET 研究发现首个已知的 AI 驱动型勒索软件",
+          "excerpt": "“PromptLock恶意软件使用OpenAI的gpt-oss-20b模型，通过Ollama API在本地动态生成恶意Lua脚本，然后执行这些脚本。PromptLock利用从硬编码提示生成的Lua脚本来枚举本地文件系统、检查目标文件、窃取选定数据并执行加密。” ESET 研究人员表示。",
+          "excerpt_sha256": "1d4e81df6dfd31ce3c0416db6c6ec312e4da24b81282c8f54782f1dd3735f434"
+        }
+      ]
+    }
+  ],
+  "extraction": {
+    "pipeline_version": "0.3",
+    "extractors": [
+      {
+        "name": "document-parser",
+        "version": "html"
+      },
+      {
+        "name": "deterministic-event-index",
+        "version": "0.3"
+      },
+      {
+        "name": "evidence-field-rules",
+        "version": "0.3"
+      }
+    ],
+    "validation_status": "passed",
+    "review_status": "not_reviewed",
+    "errors": []
+  }
+}

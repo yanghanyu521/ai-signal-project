@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ztw.local/schemas/report-extraction-0.1.json",
+  "title": "AI-involved Security Report Extraction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "document",
+    "entities",
+    "claims",
+    "sample_links",
+    "cross_validation",
+    "extraction",
+    "errors"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "document": { "$ref": "#/$defs/document" },
+    "entities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entity" }
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claim" }
+    },
+    "sample_links": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sampleLink" }
+    },
+    "cross_validation": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/comparison" }
+    },
+    "extraction": { "$ref": "#/$defs/extraction" },
+    "errors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/error" }
+    }
+  },
+  "$defs": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "title",
+        "canonical_url",
+        "publisher",
+        "publication_date",
+        "retrieved_at",
+        "content_type",
+        "content_sha256",
+        "source_tier",
+        "language",
+        "acquisition_status"
+      ],
+      "properties": {
+        "document_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "canonical_url": { "type": ["string", "null"], "format": "uri" },
+        "publisher": { "type": ["string", "null"] },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "publication_date": { "type": ["string", "null"] },
+        "retrieved_at": { "type": "string", "format": "date-time" },
+        "content_type": {
+          "enum": ["html", "pdf", "docx", "markdown", "text", "unknown"]
+        },
+        "content_sha256": { "type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$" },
+        "source_tier": {
+          "enum": ["primary_vendor", "government_cert", "security_research", "secondary_media", "aggregator", "unknown"]
+        },
+        "language": { "type": ["string", "null"] },
+        "parent_report_id": { "type": ["string", "null"] },
+        "acquisition_status": {
+          "enum": ["fetched", "partial", "blocked", "missing_url", "unsupported", "failed"]
+        }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity_id", "entity_type", "name", "normalized_name"],
+      "properties": {
+        "entity_id": { "type": "string" },
+        "entity_type": {
+          "enum": [
+            "campaign",
+            "threat_actor",
+            "victim",
+            "region",
+            "malware_family",
+            "sample",
+            "artifact",
+            "ai_model",
+            "ai_provider",
+            "agent_framework",
+            "tool",
+            "technique",
+            "vulnerability",
+            "indicator"
+          ]
+        },
+        "name": { "type": "string" },
+        "normalized_name": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "attributes": { "type": "object" }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "subject_id",
+        "predicate",
+        "object",
+        "claim_type",
+        "assertion_status",
+        "author_confidence",
+        "extractor_confidence",
+        "evidence"
+      ],
+      "properties": {
+        "claim_id": { "type": "string" },
+        "subject_id": { "type": "string" },
+        "predicate": {
+          "enum": [
+            "attributed_to",
+            "associated_with_region",
+            "targets",
+            "uses_model",
+            "uses_provider",
+            "uses_agent",
+            "uses_tool",
+            "uses_prompt",
+            "has_code_style_feature",
+            "performs_technique",
+            "has_operational_status",
+            "has_ai_role",
+            "has_autonomy_level",
+            "has_human_role",
+            "has_ai_work_share",
+            "has_indicator",
+            "has_artifact",
+            "affects_platform",
+            "observed_during",
+            "limits_or_contradicts"
+          ]
+        },
+        "object": {
+          "oneOf": [
+            { "type": "object", "required": ["entity_id"], "properties": { "entity_id": { "type": "string" } }, "additionalProperties": false },
+            { "type": "object", "required": ["value"], "properties": { "value": {}, "unit": { "type": ["string", "null"] } }, "additionalProperties": false }
+          ]
+        },
+        "claim_type": {
+          "enum": ["direct_observation", "author_assessment", "author_inference", "methodology", "limitation", "negative_evidence"]
+        },
+        "assertion_status": {
+          "enum": ["asserted", "likely", "possible", "speculative", "denied", "unknown"]
+        },
+        "author_confidence": {
+          "enum": ["explicit_high", "explicit_medium", "explicit_low", "implicit", "not_stated"]
+        },
+        "extractor_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "time_scope": {
+          "type": "object",
+          "properties": {
+            "start": { "type": ["string", "null"] },
+            "end": { "type": ["string", "null"] },
+            "precision": { "enum": ["day", "month", "year", "range", "unknown"] }
+          },
+          "additionalProperties": false
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document_id", "section", "locator", "excerpt", "excerpt_sha256"],
+      "properties": {
+        "document_id": { "type": "string" },
+        "section": { "type": ["string", "null"] },
+        "locator": {
+          "type": "object",
+          "properties": {
+            "page": { "type": ["integer", "null"], "minimum": 1 },
+            "paragraph": { "type": ["integer", "null"], "minimum": 1 },
+            "char_start": { "type": ["integer", "null"], "minimum": 0 },
+            "char_end": { "type": ["integer", "null"], "minimum": 0 },
+            "table": { "type": ["string", "null"] },
+            "row": { "type": ["integer", "null"], "minimum": 1 }
+          },
+          "additionalProperties": false
+        },
+        "excerpt": { "type": "string", "minLength": 1 },
+        "excerpt_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+      }
+    },
+    "sampleLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_ref", "report_entity_id", "link_method", "link_confidence", "propagation_allowed", "evidence_claim_ids"],
+      "properties": {
+        "sample_ref": {
+          "type": "object",
+          "required": ["sha256"],
+          "properties": {
+            "sha256": { "type": ["string", "null"], "pattern": "^[a-fA-F0-9]{64}$" },
+            "family": { "type": ["string", "null"] },
+            "file_name": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "report_entity_id": { "type": "string" },
+        "link_method": {
+          "enum": ["sha256_exact", "other_hash_exact", "report_explicit_sample", "filename_and_family", "family_only", "manual"]
+        },
+        "link_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "propagation_allowed": { "type": "boolean" },
+        "evidence_claim_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comparison_id", "sample_sha256", "sample_signal_path", "report_claim_id", "relation", "decision", "notes"],
+      "properties": {
+        "comparison_id": { "type": "string" },
+        "sample_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "sample_signal_path": { "type": "string" },
+        "report_claim_id": { "type": "string" },
+        "relation": { "enum": ["supports", "contradicts", "complements", "inconclusive"] },
+        "decision": { "enum": ["auto", "needs_review", "reviewed"] },
+        "notes": { "type": "string" }
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline_version", "extractors", "validation_status", "review_status"],
+      "properties": {
+        "pipeline_version": { "type": "string" },
+        "extractors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "version", "role"],
+            "properties": {
+              "name": { "type": "string" },
+              "version": { "type": ["string", "null"] },
+              "role": { "enum": ["parser", "deterministic", "llm", "normalizer", "validator"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "validation_status": { "enum": ["passed", "warnings", "failed"] },
+        "review_status": { "enum": ["not_reviewed", "needs_review", "reviewed"] }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "code", "message"],
+      "properties": {
+        "stage": { "type": "string" },
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "recoverable": { "type": "boolean" }
+      }
+    }
+  }
+}

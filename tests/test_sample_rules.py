@@ -191,9 +191,6 @@ def test_new_code_statistics_are_comparable_with_same_method():
 
 
 def test_prompt_hash_matches_existing_simhash_contract(platform):
-    service, _ = platform
-    from ai_signal_hub.legacy import _add_src
-    _add_src(service.settings.legacy_sample_project)
     from aisig.prompt import simhash64
     data = (DIRECTIVE + SOURCE).encode()
     prompt = apply_sample_rules(base(data), data)["features"]["prompt"]["embedded_prompts"][0]

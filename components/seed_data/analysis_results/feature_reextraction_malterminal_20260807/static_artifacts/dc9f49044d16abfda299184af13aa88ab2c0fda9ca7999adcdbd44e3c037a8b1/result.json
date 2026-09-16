@@ -1,0 +1,66 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "dc9f49044d16abfda299184af13aa88ab2c0fda9ca7999adcdbd44e3c037a8b1",
+    "sha1": "b0deb274d35e0aed0669623b3575403c0ecee5f6",
+    "md5": "651d69c843f827f9ed871f595ffa15e5",
+    "size": 395776,
+    "file_name": "dc9f49044d16abfda299184af13aa88ab2c0fda9ca7999adcdbd44e3c037a8b1",
+    "file_type": "PE32+ executable (console) x86-64 (stripped to external PDB), for MS Windows, 12 sections",
+    "entropy": 6.2672,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "PE32+ executable (console) x86-64 (stripped to external PDB), for MS Windows, 12 sections",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

@@ -1,0 +1,162 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "5f6bfdd430a23afdc518857dfff25a29d85ead441dfa0ee363f4e73f240c89f4",
+    "sha1": "7244a4d43b576d417a826a38e0dcea58adc71329",
+    "md5": "1952345e66e1f3173190d282f810a37d",
+    "size": 19827,
+    "file_name": "5f6bfdd430a23afdc518857dfff25a29d85ead441dfa0ee363f4e73f240c89f4",
+    "file_type": "Python script, ASCII text executable, with very long lines (360)",
+    "entropy": 5.5703,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "Python script, ASCII text executable, with very long lines (360)",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 15563,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 16180,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "raw_byte_scan",
+          "offset": 15581,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [
+        {
+          "offset": 15152,
+          "source": "strings:ascii",
+          "text_hash": "sha256:0d28a92ed736a82ad675537aa0923851d4d4f3a31c69ba316c2be3c3d97b69c9",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:471c4f1341b60287",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "'content': 'Make a list of commands to create folder C:\\\\Programdata\\\\info and to gather computer information, hardware information, process and services information, networks information, AD domain information, to execute in one line and a",
+          "features": {
+            "output_only": true
+          }
+        },
+        {
+          "offset": 15867,
+          "source": "strings:ascii",
+          "text_hash": "sha256:d2920a605e3de30d142067efc015693818b63c5dbc56d9c1a451a19b252a6df1",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:177ccd32c1f39283",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "'content': 'Make a list of commands to copy recursively different office and pdf/txt documents in user Documents,Downloads and Desktop folders to a folder c:\\\\Programdata\\\\info\\\\ to execute in one line. Return only command, without markdown",
+          "features": {
+            "output_only": true,
+            "code_only": true
+          }
+        }
+      ],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": true,
+        "code_only": true,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 461,
+        "blank_ratio": 0.043,
+        "comment_ratio": 0.692,
+        "mean_identifier_length": null,
+        "naming_style": {}
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      },
+      "parse_error": "invalid syntax (<unknown>, line 324)"
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Alibaba/Qwen",
+      "family": "Qwen",
+      "model": "Qwen2.5-Coder-32B-Instruct",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "qwen25_coder_32b",
+        "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "normalized": {
+          "vendor": "Alibaba/Qwen",
+          "family": "Qwen",
+          "model": "Qwen2.5-Coder-32B-Instruct"
+        },
+        "source": "strings:ascii",
+        "offset": 15563,
+        "confidence": 0.99,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

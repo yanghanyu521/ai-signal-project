@@ -1,0 +1,155 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "766c356d6a4b00078a0293460c5967764fcd788da8c1cd1df708695f3a15b777",
+    "sha1": "6591e6eee4fefaee9f214dfa872e15d426f695fc",
+    "md5": "abe531e9f1e642c47260fac40dc41f59",
+    "size": 10680751,
+    "file_name": "766c356d6a4b00078a0293460c5967764fcd788da8c1cd1df708695f3a15b777",
+    "file_type": "PE32+ executable (GUI) x86-64, for MS Windows, 7 sections",
+    "entropy": 7.9913,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "PE32+ executable (GUI) x86-64, for MS Windows, 7 sections",
+      "packaging_candidates": [
+        "PyInstaller"
+      ],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "recovered_pyinstaller:save_document.pyc:strings:ascii",
+          "offset": 376518,
+          "confidence": 0.99,
+          "evidence_level": "direct",
+          "recovery_origin": {
+            "layer": "pyinstaller_recovered_entry",
+            "entrypoint": "save_document.pyc",
+            "recovered_source_sha256": "c13f9c1f80ba50ecaa659f4db7431ddbeaf2364822731dc3a14f7e990e8f032c"
+          }
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "recovered_pyinstaller:save_document.pyc:raw_byte_scan",
+          "offset": 376536,
+          "confidence": 0.99,
+          "evidence_level": "direct",
+          "recovery_origin": {
+            "layer": "pyinstaller_recovered_entry",
+            "entrypoint": "save_document.pyc",
+            "recovered_source_sha256": "c13f9c1f80ba50ecaa659f4db7431ddbeaf2364822731dc3a14f7e990e8f032c"
+          }
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      },
+      "recovered_layers": [
+        {
+          "entrypoint": "save_document.pyc",
+          "recovered_source_sha256": "c13f9c1f80ba50ecaa659f4db7431ddbeaf2364822731dc3a14f7e990e8f032c",
+          "analysis": {
+            "status": "not_trained",
+            "language": "python",
+            "recoverability": "recovered_source",
+            "metrics": {
+              "loc": 361,
+              "blank_ratio": 0.03,
+              "comment_ratio": 0.851,
+              "mean_identifier_length": null,
+              "naming_style": {}
+            },
+            "ai_generated_detection": {
+              "status": "not_trained",
+              "heuristic_score": null
+            },
+            "parse_error": "unterminated string literal (detected at line 295) (<unknown>, line 295)"
+          }
+        }
+      ]
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "recovered",
+        "extractor": "pyinstxtractor-ng",
+        "decompiler": "pycdc",
+        "entrypoint": "save_document.pyc",
+        "recovered_source_sha256": "c13f9c1f80ba50ecaa659f4db7431ddbeaf2364822731dc3a14f7e990e8f032c",
+        "recovered_source_size": 377213
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Alibaba/Qwen",
+      "family": "Qwen",
+      "model": "Qwen2.5-Coder-32B-Instruct",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "qwen25_coder_32b",
+        "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "normalized": {
+          "vendor": "Alibaba/Qwen",
+          "family": "Qwen",
+          "model": "Qwen2.5-Coder-32B-Instruct"
+        },
+        "source": "recovered_pyinstaller:save_document.pyc:strings:ascii",
+        "offset": 376518,
+        "confidence": 0.99,
+        "evidence_level": "direct",
+        "recovery_origin": {
+          "layer": "pyinstaller_recovered_entry",
+          "entrypoint": "save_document.pyc",
+          "recovered_source_sha256": "c13f9c1f80ba50ecaa659f4db7431ddbeaf2364822731dc3a14f7e990e8f032c"
+        }
+      }
+    ]
+  },
+  "errors": []
+}

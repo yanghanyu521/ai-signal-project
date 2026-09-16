@@ -1,0 +1,132 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "a32a3751dfd4d7a0a66b7ecbd9bacb5087076377d486afdf05d3de3cb7555501",
+    "sha1": "26afdde3fae3f771a1157350d6e7f8c3bac571df",
+    "md5": "bfebff2b4faa94e2d7fa386aca9e368b",
+    "size": 33944064,
+    "file_name": "a32a3751dfd4d7a0a66b7ecbd9bacb5087076377d486afdf05d3de3cb7555501",
+    "file_type": "PE32+ executable (DLL) (GUI) x86-64, for MS Windows, 8 sections",
+    "entropy": 6.2974,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "PE32+ executable (DLL) (GUI) x86-64, for MS Windows, 8 sections",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "openai_gpt_family",
+          "value": "gpt-4o",
+          "normalized": {
+            "vendor": "OpenAI",
+            "family": "GPT"
+          },
+          "source": "raw_byte_scan",
+          "offset": 32448437,
+          "confidence": 0.95,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "endpoint",
+          "rule_id": "huggingface_inference",
+          "value": "api-inference.huggingface.co",
+          "normalized": {
+            "family": "unknown",
+            "provider": "Hugging Face"
+          },
+          "source": "raw_byte_scan",
+          "offset": 31739735,
+          "confidence": 0.98,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "sdk_marker",
+          "rule_id": null,
+          "value": "from openai",
+          "normalized": {
+            "family": "GPT",
+            "provider": "OpenAI"
+          },
+          "source": "raw_byte_scan",
+          "offset": 32131066,
+          "confidence": 0.9,
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "sdk_marker",
+          "rule_id": null,
+          "value": "chat.completions",
+          "normalized": {
+            "family": "unknown"
+          },
+          "source": "raw_byte_scan",
+          "offset": 32123708,
+          "confidence": 0.9,
+          "evidence_level": "strong_indirect"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.95
+    },
+    "model_attribution": {
+      "vendor": "OpenAI",
+      "family": "GPT",
+      "model": "gpt-4o",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.95
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "openai_gpt_family",
+        "value": "gpt-4o",
+        "normalized": {
+          "vendor": "OpenAI",
+          "family": "GPT"
+        },
+        "source": "raw_byte_scan",
+        "offset": 32448437,
+        "confidence": 0.95,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

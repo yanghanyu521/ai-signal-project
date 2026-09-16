@@ -1,0 +1,66 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "8013b23cb78407675f323d54b6b8dfb2a61fb40fb13309337f5b662dbd812a5d",
+    "sha1": "04e86c2acee351bab019fe505aeaa6ab6b4d77d7",
+    "md5": "7f7e8d9bbb835f03084d088d5bb722af",
+    "size": 10434647,
+    "file_name": "8013b23cb78407675f323d54b6b8dfb2a61fb40fb13309337f5b662dbd812a5d",
+    "file_type": "Zip archive data, at least v2.0 to extract, compression method=deflate",
+    "entropy": 7.9987,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "Zip archive data, at least v2.0 to extract, compression method=deflate",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

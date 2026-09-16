@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ai_signal_hub.config import Settings
-from ai_signal_hub.legacy import LegacyAdapters, _add_src
+from ai_signal_hub.legacy import LegacyAdapters
 from ai_signal_hub.report_llm import ModelClient, ReportModelError
 
 
@@ -33,7 +33,6 @@ def source(family):
 
 
 def prepare(families):
-    _add_src(Settings().legacy_report_project)
     from report_extractor.parsers import parse_document
     manifest = []
     for family in families:
@@ -54,8 +53,7 @@ def run(families, batch):
         raise ValueError("--batch must be a single directory name")
     settings = Settings()
     client = ModelClient.from_env()
-    # Initialize legacy imports before starting worker threads.
-    _add_src(settings.legacy_report_project)
+    # Initialize the bundled parser import before starting worker threads.
     from report_extractor.parsers import parse_document  # noqa: F401
     output = ROOT / batch
     if output.exists() and any(output.iterdir()):

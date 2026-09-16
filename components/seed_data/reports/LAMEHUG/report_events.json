@@ -1,0 +1,135 @@
+{
+  "schema_version": "0.3",
+  "report": {
+    "report_id": "report:845c39e53bd0198fec1b",
+    "title": "CERT-UA",
+    "publisher": null,
+    "publication_date": {
+      "value": null,
+      "precision": "unknown",
+      "raw": null
+    },
+    "url": null,
+    "file_name": "CERT-UA.html",
+    "content_type": "html",
+    "language": "zh-CN",
+    "content_sha256": "ebcaee8ebe46bc373f8f6f4f9513e27249830eddb0c2543a917f4e5bef7667a2"
+  },
+  "events": [
+    {
+      "event_id": "event:fbc5835edd68a9f81992",
+      "identity": {
+        "event_name": "LAMEHUG",
+        "aliases": [
+          "PROMPTSTEAL"
+        ],
+        "event_type": "unknown",
+        "evidence_ids": [
+          "evidence:300d8c2df1d4771b7b46"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "unknown",
+        "evidence_ids": []
+      },
+      "artifacts": [],
+      "attribution": {
+        "actors": [
+          {
+            "name": "APT28",
+            "aliases": [],
+            "actor_type": "unknown",
+            "country_or_region": null,
+            "confidence": "not_stated",
+            "basis": [
+              "report_author_assessment"
+            ],
+            "limitations": [],
+            "evidence_ids": [
+              "evidence:9aede7d64208d934c773"
+            ]
+          }
+        ]
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "LLM",
+            "provider": null,
+            "family": "LLM",
+            "model": null,
+            "service": null,
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "unknown",
+            "purpose": null,
+            "stage": null,
+            "evidence_ids": [
+              "evidence:300d8c2df1d4771b7b46"
+            ]
+          }
+        ],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:300d8c2df1d4771b7b46",
+          "block_id": "block:bc3355e4a14a801dcded",
+          "page": null,
+          "section": null,
+          "excerpt": "UAC-0001 利用 LAMEHUG 软件工具对安全和国防领域发起网络攻击，该工具使用 LLM（大型语言模型）（CERT-UA#16039）",
+          "excerpt_sha256": "776582f5aa7c68ffbe83252b00de5e9db97fa7e5268d7e7512cd41543bf8e110"
+        },
+        {
+          "evidence_id": "evidence:9aede7d64208d934c773",
+          "block_id": "block:175fc8579d643b1cc5a3",
+          "page": null,
+          "section": null,
+          "excerpt": "有一定程度的置信度，该活动与 UAC-0001 (APT28) 的活动相关。",
+          "excerpt_sha256": "49c89dff8834733e0d058584960463bd956665119ebb88284aa91598bb3cb9ea"
+        }
+      ]
+    }
+  ],
+  "extraction": {
+    "pipeline_version": "0.3",
+    "extractors": [
+      {
+        "name": "document-parser",
+        "version": "html"
+      },
+      {
+        "name": "deterministic-event-index",
+        "version": "0.3"
+      },
+      {
+        "name": "evidence-field-rules",
+        "version": "0.3"
+      }
+    ],
+    "validation_status": "passed",
+    "review_status": "not_reviewed",
+    "errors": []
+  }
+}

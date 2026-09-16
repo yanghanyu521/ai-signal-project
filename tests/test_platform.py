@@ -11,7 +11,7 @@ from ai_signal_hub.similarity import extract_feature_groups
 from ai_signal_hub.storage import UploadTooLarge, safe_report_suffix, stream_to_temporary
 
 
-WORKSPACE = Path(__file__).resolve().parents[2]
+PROJECT = Path(__file__).resolve().parents[1]
 
 
 def test_storage_limits_and_report_whitelist(tmp_path: Path) -> None:
@@ -67,8 +67,8 @@ def test_sample_report_cross_validation_and_report_generation(
     report_model,
 ) -> None:
     service, repository = platform
-    sample_path = WORKSPACE / "ai_signal_demo" / "tests" / "fixtures" / "sanitized" / "promptflux.txt"
-    report_path = WORKSPACE / "报告信息抽取" / "tests" / "fixtures" / "promptflux_report.html"
+    sample_path = PROJECT / "tests" / "fixtures" / "sanitized" / "promptflux.txt"
+    report_path = PROJECT / "tests" / "fixtures" / "reports" / "promptflux_report.html"
 
     with sample_path.open("rb") as handle:
         sample = service.analyze_sample(handle, sample_path.name, "PROMPTFLUX")
@@ -107,9 +107,9 @@ def test_joint_case_can_be_completed_later_and_sample_relations_are_automatic(
     report_model,
 ) -> None:
     service, repository = platform
-    sample_path = WORKSPACE / "ai_signal_demo" / "tests" / "fixtures" / "sanitized" / "promptflux.txt"
-    second_sample_path = WORKSPACE / "ai_signal_demo" / "tests" / "fixtures" / "sanitized" / "fruitshell.txt"
-    report_path = WORKSPACE / "报告信息抽取" / "tests" / "fixtures" / "promptflux_report.html"
+    sample_path = PROJECT / "tests" / "fixtures" / "sanitized" / "promptflux.txt"
+    second_sample_path = PROJECT / "tests" / "fixtures" / "sanitized" / "fruitshell.txt"
+    report_path = PROJECT / "tests" / "fixtures" / "reports" / "promptflux_report.html"
 
     with sample_path.open("rb") as handle:
         first = service.analyze_case(

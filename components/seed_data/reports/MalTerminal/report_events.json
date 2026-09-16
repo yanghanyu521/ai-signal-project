@@ -1,0 +1,317 @@
+{
+  "schema_version": "0.3",
+  "report": {
+    "report_id": "report:c88ea63e6a3e8382ff72",
+    "title": "提示即代码和嵌入式密钥 | 追捕支持 LLM 的恶意软件 | SentinelOne",
+    "publisher": null,
+    "publication_date": {
+      "value": "2025-09-19",
+      "precision": "day",
+      "raw": "2025-09-19"
+    },
+    "url": null,
+    "file_name": "提示即代码和嵌入式密钥 _ 追捕支持 LLM 的恶意软件 _ SentinelOne.html",
+    "content_type": "html",
+    "language": "zh-CN",
+    "content_sha256": "419c344ef7470c5b35f7638f46f4926b5e17aad6f24c16a0c6fe8c84c38085a5"
+  },
+  "events": [
+    {
+      "event_id": "event:c4e95e4dfa03d3777dc3",
+      "identity": {
+        "event_name": "MalTerminal",
+        "aliases": [],
+        "event_type": "malware_operation",
+        "evidence_ids": [
+          "evidence:29801fa9f651ca3c690c"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "proof_of_concept",
+        "evidence_ids": [
+          "evidence:fa31e65236f691e70fa9"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:1305edf933444a1fafcf",
+          "family": "MalTerminal",
+          "aliases": [],
+          "sha256": [
+            "3082156a26534377a8a8228f44620a5bb00440b37b0cf7666c63c542232260f2",
+            "3afbb9fe6bab2cad83c52a3f1a12e0ce979fe260c55ab22a43c18035ff7d7f38",
+            "4c73717d933f6b53c40ed1b211143df8d011800897be1ceb5d4a2af39c9d4ccc",
+            "4ddbc14d8b6a301122c0ac6e22aef6340f45a3a6830bcdacf868c755a7162216",
+            "68ca559bf6654c7ca96c10abb4a011af1f4da0e6d28b43186d1d48d2f936684c",
+            "75b4ad99f33d1adbc0d71a9da937759e6e5788ad0f8a2c76a34690ef1c49ebf5",
+            "854b559bae2ce8700edd75808267cfb5f60d61ff451f0cf8ec1d689334ac8d0b",
+            "943d3537730e41e0a6fe8048885a07ea2017847558a916f88c2c9afe32851fe6",
+            "b2bda70318af89b9e82751eb852ece626e2928b94ac6af6e6c7031b3d016ebd2",
+            "c1a80983779d8408a9c303d403999a9aef8c2f0fe63f8b5ca658862f66f3db16",
+            "c5ae843e1c7769803ca70a9d5b5574870f365fb139016134e5dd3cb1b1a65f5f",
+            "c86a5fcefbf039a72bd8ad5dc70bcb67e9c005f40a7bacd2f76c793f85e9a061",
+            "d1b48715ace58ee3bfb7af34066491263b885bd865863032820dccfe184614ad",
+            "dc9f49044d16abfda299184af13aa88ab2c0fda9ca7999adcdbd44e3c037a8b1",
+            "e88a7b9ad5d175383d466c5ad7ebd7683d60654d2fa2aca40e2c4eb9e955c927"
+          ],
+          "file_names": [],
+          "role": null,
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "sample_set",
+          "evidence_ids": [
+            "evidence:29801fa9f651ca3c690c",
+            "evidence:850f9ab6bccb422ace66"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "GPT-4",
+            "provider": "OpenAI",
+            "family": "GPT",
+            "model": "GPT-4",
+            "service": "Chat Completions API",
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "cloud_api",
+            "purpose": null,
+            "stage": null,
+            "evidence_ids": [
+              "evidence:f3fdbb56c809f9d00456"
+            ]
+          }
+        ],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:29801fa9f651ca3c690c",
+          "block_id": "block:0a814e40cbf81861bb8c",
+          "page": null,
+          "section": "执行摘要",
+          "excerpt": "我们的研究发现了以前未知的样本，以及迄今为止已知的最早的 LLM 恶意软件示例，我们将其命名为“MalTerminal”。",
+          "excerpt_sha256": "a379179505c46a62222d39d853cff26a1516511215bf183b7569638025f4483c"
+        },
+        {
+          "evidence_id": "evidence:fa31e65236f691e70fa9",
+          "block_id": "block:d0c626ea00275b6de0f4",
+          "page": null,
+          "section": "LLM支持的恶意软件 | 最新发现",
+          "excerpt": "文件名 目的 笔记 恶意终端.exe 恶意软件 已编译的 Python2EXE 示例：C:\\Users\\Public\\Proj\\MalTerminal.py testAPI.py（1） 恶意软件 恶意软件生成器 PoC 脚本 testAPI.py（2） 恶意软件 恶意软件生成器 PoC 脚本 TestMal2.py 恶意软件 早期版本的 Malterminal TestMal3.py 防御工具 “FalconShield：一款用于分析可疑Python文件的工具。” Defe.py（1） 防御工具 “FalconShield：一款用于分析可疑Python文件的工具。” Defe.py（2） 防御工具 “FalconShield：一款用于分析可疑Python文件的工具。”",
+          "excerpt_sha256": "2d1b0394ca41379cc7f8913274b6f2f4f8d2ea96d45652190d284c9cdcfb4df0"
+        },
+        {
+          "evidence_id": "evidence:850f9ab6bccb422ace66",
+          "block_id": "block:170d80cf91797930f9c3",
+          "page": null,
+          "section": "恶意软件样本",
+          "excerpt": "MalTerminal 3082156a26534377a8a8228f44620a5bb00440b37b0cf7666c63c542232260f2 3afbb9fe6bab2cad83c52a3f1a12e0ce979fe260c55ab22a43c18035ff7d7f38 4c73717d933f6b53c40ed1b211143df8d011800897be1ceb5d4a2af39c9d4ccc 4ddbc14d8b6a301122c0ac6e22aef6340f45a3a6830bcdacf868c755a7162216 68ca559bf6654c7ca96c10abb4a011af1f4da0e6d28b43186d1d48d2f936684c 75b4ad99f33d1adbc0d71a9da937759e6e5788ad0f8a2c76a34690ef1c49ebf5 854b559bae2ce8700edd75808267cfb5f60d61ff451f0cf8ec1d689334ac8d0b 943d3537730e41e0a6fe8048885a07ea2017847558a916f88c2c9afe32851fe6 b2bda70318af89b9e82751eb852ece626e2928b94ac6af6e6c7031b3d016ebd2 c1a80983779d8408a9c303d403999a9aef8c2f0fe63f8b5ca658862f66f3db16 c5ae843e1c7769803ca70a9d5b5574870f365f",
+          "excerpt_sha256": "75c858821d5d6387e10a97d85491b8368c9215624c8e2df765257c6a53306805"
+        },
+        {
+          "evidence_id": "evidence:f3fdbb56c809f9d00456",
+          "block_id": "block:d396fd80b97b0674883c",
+          "page": null,
+          "section": "LLM支持的恶意软件 | 最新发现",
+          "excerpt": "该可执行文件使用 OpenAI GPT-4 动态生成勒索软件代码或反向 shell。MalTerminal 包含一个 OpenAI 聊天补全 API 端点，该端点已于 2023 年 11 月初弃用，这表明该样本编写于该日期之前，并且 MalTerminal 很可能是目前发现的最早的启用 LLM 功能的恶意软件。",
+          "excerpt_sha256": "b233b22b761a39b15f20138d2f6c5546f3a300a0aa34b43b7eeaf6aef293c641"
+        }
+      ]
+    },
+    {
+      "event_id": "event:a0325321f9286aa47d90",
+      "identity": {
+        "event_name": "PROMPTSTEAL",
+        "aliases": [
+          "LameHug"
+        ],
+        "event_type": "ransomware",
+        "evidence_ids": [
+          "evidence:492cc511577f95f1f5ea"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "unknown",
+        "evidence_ids": []
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:bafbefc38fa7d31b3116",
+          "family": "PROMPTSTEAL",
+          "aliases": [
+            "LameHug"
+          ],
+          "sha256": [
+            "165eaf8183f693f644a8a24d2ec138cd4f8d9fd040e8bafc1b021a0f973692dd",
+            "2eb18873273e157a7244bb165d53ea3637c76087eea84b0ab635d04417ffbe1b",
+            "384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715",
+            "5ab16a59b12c7c5539d9e22a090ba6c7942fbc5ab8abbc5dffa6b6de6e0f2fc6",
+            "5f6bfdd430a23afdc518857dfff25a29d85ead441dfa0ee363f4e73f240c89f4",
+            "766c356d6a4b00078a0293460c5967764fcd788da8c1cd1df708695f3a15b777",
+            "8013b23cb78407675f323d54b6b8dfb2a61fb40fb13309337f5b662dbd812a5d",
+            "a30930dfb655aa39c571c163ada65ba4dec30600df3bf548cc48bedd0e841416",
+            "a32a3751dfd4d7a0a66b7ecbd9bacb5087076377d486afdf05d3de3cb7555501",
+            "a67465075c91bb15b81e1f898f2b773196d3711d8e1fb321a9d6647958be436b",
+            "ae6ed1721d37477494f3f755c124d53a7dd3e24e98c20f3a1372f45cc8130989",
+            "b3fcba809984eaffc5b88a1bcded28ac50e71965e61a66dd959792f7750b9e87",
+            "b49aa9efd41f82b34a7811a7894f0ebf04e1d9aab0b622e0083b78f54fe8b466",
+            "bb2836148527744b11671347d73ca798aca9954c6875082f9e1176d7b52b720f",
+            "bdb33bbb4ea11884b15f67e5c974136e6294aa87459cdc276ac2eea85b1deaa3",
+            "cf4d430d0760d59e2fa925792f9e2b62d335eaf4d664d02bff16dd1b522a462a",
+            "d6af1c9f5ce407e53ec73c8e7187ed804fb4f80cf8dbd6722fc69e15e135db2e"
+          ],
+          "file_names": [],
+          "role": null,
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "sample_set",
+          "evidence_ids": [
+            "evidence:492cc511577f95f1f5ea",
+            "evidence:1fa14d676eae09f368dc"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": [
+          {
+            "name": "APT28",
+            "aliases": [],
+            "actor_type": "unknown",
+            "country_or_region": null,
+            "confidence": "not_stated",
+            "basis": [
+              "report_author_assessment"
+            ],
+            "limitations": [],
+            "evidence_ids": [
+              "evidence:43c6e153c68e21f5fd67"
+            ]
+          }
+        ]
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "LLM",
+            "provider": null,
+            "family": "LLM",
+            "model": null,
+            "service": null,
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "unknown",
+            "purpose": null,
+            "stage": null,
+            "evidence_ids": [
+              "evidence:b4dd0c38b4460bfaba7a"
+            ]
+          }
+        ],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:492cc511577f95f1f5ea",
+          "block_id": "block:cea441db6882ca47cf5e",
+          "page": null,
+          "section": "APT28 LameHug/PROMPTSTEAL",
+          "excerpt": "在多个样本中，PromptSteal 嵌入了 284 个唯一的 HuggingFace API 密钥。尽管该恶意软件最早于 2025 年 6 月被发现，但嵌入的密钥是在 2023 年发现的凭据泄露事件中泄露的。嵌入多个密钥是绕过密钥黑名单并延长恶意软件生命周期的合理步骤。这也成为通过公共 API 恶意使用 LLM 的一个特征，可用于威胁狩猎。",
+          "excerpt_sha256": "6f14b339d8026849284cb670f111ff90f6e41f8b23f017627aa7617e2d593af8"
+        },
+        {
+          "evidence_id": "evidence:1fa14d676eae09f368dc",
+          "block_id": "block:bdb11646b2bab46d46d4",
+          "page": null,
+          "section": "恶意软件样本",
+          "excerpt": "LameHug 165eaf8183f693f644a8a24d2ec138cd4f8d9fd040e8bafc1b021a0f973692dd 2eb18873273e157a7244bb165d53ea3637c76087eea84b0ab635d04417ffbe1b 384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715 5ab16a59b12c7c5539d9e22a090ba6c7942fbc5ab8abbc5dffa6b6de6e0f2fc6 5f6bfdd430a23afdc518857dfff25a29d85ead441dfa0ee363f4e73f240c89f4 766c356d6a4b00078a0293460c5967764fcd788da8c1cd1df708695f3a15b777 8013b23cb78407675f323d54b6b8dfb2a61fb40fb13309337f5b662dbd812a5d a30930dfb655aa39c571c163ada65ba4dec30600df3bf548cc48bedd0e841416 a32a3751dfd4d7a0a66b7ecbd9bacb5087076377d486afdf05d3de3cb7555501 a67465075c91bb15b81e1f898f2b773196d3711d8e1fb321a9d6647958be436b ae6ed1721d37477494f3f755c124d53a7dd3e24e98",
+          "excerpt_sha256": "2d35f8f6dc794f1023d37075524ebefa3cf51e27270ceebc324a7a1e3005a4da"
+        },
+        {
+          "evidence_id": "evidence:43c6e153c68e21f5fd67",
+          "block_id": "block:e8b0469a0d096095530d",
+          "page": null,
+          "section": "APT28 LameHug/PROMPTSTEAL",
+          "excerpt": "APT28 LameHug/PROMPTSTEAL",
+          "excerpt_sha256": "bd6e17dfbbd0d19ccf71c5b4002f2925a070800b5f009884dab9333a3744a23d"
+        },
+        {
+          "evidence_id": "evidence:b4dd0c38b4460bfaba7a",
+          "block_id": "block:2adf9649b2b299ad7691",
+          "page": null,
+          "section": "LLM 和恶意软件 | 定义威胁",
+          "excerpt": "LLM 作为黑客的得力助手 ——威胁行为者越来越多地利用 LLM 提供 行动支持 。常见的例子包括生成极具迷惑性的钓鱼邮件、协助编写代码或对窃取的数据进行分类。在这些情况下，LLM 并非嵌入恶意软件中，而是作为攻击者的外部工具。许多此类 LLM 被包装成 ChatGPT 的恶意版本进行销售，例如 WormGPT、FraudGPT、HacxGPT 等。实际上，它们通常依赖于 ChatGPT，并添加了额外的预提示，试图绕过 OpenAI 的安全控制和策略。",
+          "excerpt_sha256": "6229f045dea28891548108dbfc06e9e4daca3edfa280aea932ae002d5aa66892"
+        }
+      ]
+    }
+  ],
+  "extraction": {
+    "pipeline_version": "0.3",
+    "extractors": [
+      {
+        "name": "document-parser",
+        "version": "html"
+      },
+      {
+        "name": "deterministic-event-index",
+        "version": "0.3"
+      },
+      {
+        "name": "evidence-field-rules",
+        "version": "0.3"
+      }
+    ],
+    "validation_status": "passed",
+    "review_status": "not_reviewed",
+    "errors": []
+  }
+}

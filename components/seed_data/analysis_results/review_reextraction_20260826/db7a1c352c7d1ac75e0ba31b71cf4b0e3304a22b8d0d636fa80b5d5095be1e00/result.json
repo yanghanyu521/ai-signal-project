@@ -1,0 +1,138 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "db7a1c352c7d1ac75e0ba31b71cf4b0e3304a22b8d0d636fa80b5d5095be1e00",
+    "sha1": "f8f4c5bc498bcce907dc975dd88be8d594629909",
+    "md5": "363846aab242c38bdfadb7634a335b34",
+    "size": 11033233,
+    "file_name": "db7a1c352c7d1ac75e0ba31b71cf4b0e3304a22b8d0d636fa80b5d5095be1e00",
+    "file_type": "unknown (python-magic unavailable)",
+    "entropy": 7.6365,
+    "language": null,
+    "recoverability": "strings_only"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "unknown (python-magic unavailable)",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "google_gemini_25_flash_lite",
+          "value": "gemini-2.5-flash-lite",
+          "normalized": {
+            "vendor": "Google",
+            "family": "Gemini",
+            "model": "gemini-2.5-flash-lite"
+          },
+          "source": "recovered_apk:dex:raw_byte_scan",
+          "offset": 6777177,
+          "confidence": 0.99,
+          "evidence_level": "direct",
+          "recovery_origin": {
+            "layer": "apk_member_scan",
+            "member_sha256": "938b48776cb87e5935059a0d3dab815f941f841b50a0f682be00344c86804875",
+            "member_kind": "dex"
+          }
+        },
+        {
+          "type": "endpoint",
+          "rule_id": "google_generative_language",
+          "value": "generativelanguage.googleapis.com",
+          "normalized": {
+            "family": "Gemini",
+            "provider": "Google Gemini API"
+          },
+          "source": "recovered_apk:dex:raw_byte_scan",
+          "offset": 6777072,
+          "confidence": 0.98,
+          "evidence_level": "direct",
+          "recovery_origin": {
+            "layer": "apk_member_scan",
+            "member_sha256": "938b48776cb87e5935059a0d3dab815f941f841b50a0f682be00344c86804875",
+            "member_kind": "dex"
+          }
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "structural_artifacts": [],
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "strings_only",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      },
+      "apk": {
+        "status": "scanned",
+        "member_count": 1005,
+        "members_scanned": 1005,
+        "members_skipped": 0,
+        "bytes_scanned": 21691787,
+        "limits": {
+          "max_members": 5000,
+          "max_member_bytes": 33554432,
+          "max_total_bytes": 125829120,
+          "max_compression_ratio": 200
+        }
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Google",
+      "family": "Gemini",
+      "model": "gemini-2.5-flash-lite",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "google_gemini_25_flash_lite",
+        "value": "gemini-2.5-flash-lite",
+        "normalized": {
+          "vendor": "Google",
+          "family": "Gemini",
+          "model": "gemini-2.5-flash-lite"
+        },
+        "source": "recovered_apk:dex:raw_byte_scan",
+        "offset": 6777177,
+        "confidence": 0.99,
+        "evidence_level": "direct",
+        "recovery_origin": {
+          "layer": "apk_member_scan",
+          "member_sha256": "938b48776cb87e5935059a0d3dab815f941f841b50a0f682be00344c86804875",
+          "member_kind": "dex"
+        }
+      }
+    ]
+  },
+  "errors": []
+}

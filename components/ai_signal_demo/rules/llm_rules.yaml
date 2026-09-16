@@ -1,0 +1,91 @@
+models:
+  - id: google_gemini_15_flash_latest
+    regex: '(?i)\bgemini-1\.5-flash-latest\b'
+    vendor: Google
+    family: Gemini
+    model: gemini-1.5-flash-latest
+    confidence: 0.99
+  - id: google_gemini_25_flash_lite
+    regex: '(?i)\bgemini-2\.5-flash-lite\b'
+    vendor: Google
+    family: Gemini
+    model: gemini-2.5-flash-lite
+    confidence: 0.99
+  - id: qwen25_coder_32b
+    regex: '(?i)\b(?:Qwen/)?Qwen2\.5-Coder-32B-Instruct\b'
+    vendor: Alibaba/Qwen
+    family: Qwen
+    model: Qwen2.5-Coder-32B-Instruct
+    confidence: 0.99
+  - id: gpt_oss_20b
+    regex: '(?i)\bgpt[-_:]?oss[-_:]?20b\b'
+    vendor: OpenAI
+    family: gpt-oss
+    model: gpt-oss-20b
+    confidence: 0.99
+  - id: openai_gpt_family
+    regex: '(?i)\bgpt-(?:3\.5-turbo|4(?:o)?|4-turbo)\b'
+    vendor: OpenAI
+    family: GPT
+    model: null
+    confidence: 0.95
+endpoints:
+  - id: huggingface_inference
+    regex: '(?i)api-inference\.huggingface\.co'
+    provider: Hugging Face
+    family: unknown
+    confidence: 0.98
+  - id: google_generative_language
+    regex: '(?i)generativelanguage\.googleapis\.com'
+    provider: Google Gemini API
+    family: Gemini
+    confidence: 0.98
+  - id: ollama_local
+    regex: '(?i)(?:localhost|127\.0\.0\.1):11434|/api/(?:chat|generate)'
+    provider: Ollama
+    family: unknown
+    confidence: 0.90
+sdk_patterns:
+  - regex: '(?i)\b(?:import|from)\s+openai\b|OpenAI\('
+    provider: OpenAI
+    family: GPT
+  - regex: '(?i)google\.generativeai|GenerativeModel\('
+    provider: Google
+    family: Gemini
+  - regex: '(?i)\b(?:import|from)\s+anthropic\b|Anthropic\('
+    provider: Anthropic
+    family: Claude
+  - regex: '(?i)\b(?:ollama|chat\.completions|function_call|tool_calls)\b'
+    provider: null
+    family: unknown
+ai_cli_patterns:
+  # 仅在 CLI 名称与其特有危险执行参数同时出现时识别，避免把普通
+  # "claude" 字符串误判为 Anthropic 工具链。
+  - id: anthropic_claude_cli_noninteractive
+    regex: '(?is)(?:\bclaude\b.{0,240}--dangerously-skip-permissions|--dangerously-skip-permissions.{0,240}\bclaude\b)'
+    provider: Anthropic
+    family: Claude
+    confidence: 0.98
+prompt_structure_patterns:
+  # 这类字段说明样本内部存在对话/提示词编排的数据结构；它们不等于
+  # 已恢复完整自然语言提示词，因此单独输出、不会单独触发模型归因。
+  conversation_object: '(?i)\b(?:ChatPrompt|ChatMessage|FullConversation)\b'
+  prompt_configuration: '(?i)\b(?:initial_[a-z0-9_]*prompt|validation_criteria|buildValidationPrompt)\b'
+special_tokens:
+  - '<|system|>'
+  - '<|user|>'
+  - '<|assistant|>'
+  - '<|im_start|>'
+  - '<|im_end|>'
+  - '[INST]'
+  - '[/INST]'
+  - '<<SYS>>'
+prompt_patterns:
+  role_definition: '(?i)\byou are (?:an?|the)\b'
+  output_only: '(?i)\b(?:return|output|respond with)\s+(?:only|just)\b'
+  code_only: '(?i)\b(?:only|just)\s+(?:the )?(?:code|command|script)\b'
+  single_line_command: '(?i)\b(?:one[- ]line|single[- ]line)\s+(?:windows )?(?:command|script)\b'
+  self_modification: '(?i)\b(?:rewrite|modify|obfuscat\w*|transform)\s+(?:itself|this (?:script|code)|the (?:script|code))\b'
+  evasion: '(?i)\b(?:evade|bypass|avoid)\b.{0,80}\b(?:detect|antivirus|security|analysis)\b'
+  jailbreak: '(?i)\b(?:ignore (?:all )?(?:previous|prior) instructions|DAN|jailbreak)\b'
+  safety_framing: '(?i)\b(?:authorized|penetration testing|research purpose|educational purpose|CTF)\b'

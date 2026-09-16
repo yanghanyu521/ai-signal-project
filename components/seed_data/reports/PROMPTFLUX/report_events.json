@@ -1,0 +1,865 @@
+{
+  "schema_version": "0.3",
+  "report": {
+    "report_id": "report:265c01fc48cac38fbe83",
+    "title": "GTIG AI Threat Tracker: Advances in Threat Actor Usage of AI Tools | Google Cloud Blog",
+    "publisher": null,
+    "publication_date": {
+      "value": null,
+      "precision": "unknown",
+      "raw": null
+    },
+    "url": null,
+    "file_name": "GTIG AI Threat Tracker_ Advances in Threat Actor Usage of AI Tools _ Google Cloud Blog.html",
+    "content_type": "html",
+    "language": "en",
+    "content_sha256": "1fc482e9c33fa4e1335c6499854e620f0602ec518c152ce0327073ba2da69cd0"
+  },
+  "events": [
+    {
+      "event_id": "event:546972f017334bb78a8f",
+      "identity": {
+        "event_name": "PROMPTFLUX",
+        "aliases": [],
+        "event_type": "malware_operation",
+        "evidence_ids": [
+          "evidence:f8a36765357817fa18d4"
+        ]
+      },
+      "time": {
+        "start": "2025-06",
+        "end": null,
+        "precision": "month",
+        "description": "early June 2025",
+        "evidence_ids": [
+          "evidence:f8a36765357817fa18d4"
+        ]
+      },
+      "status": {
+        "value": "development_or_testing",
+        "evidence_ids": [
+          "evidence:05924d3e606fb1efeac1"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:f7efee8c747475d2fc2f",
+          "family": "PROMPTFLUX",
+          "aliases": [],
+          "sha256": [],
+          "file_names": [],
+          "role": "dropper",
+          "language": "VBScript",
+          "file_type": null,
+          "packer": null,
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:f8a36765357817fa18d4"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [
+          "self_rewriter",
+          "analysis_evasion"
+        ],
+        "stages": [
+          "execution",
+          "analysis_evasion"
+        ],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "saved_to_file",
+        "evidence_ids": [
+          "evidence:f5ad916502f99f238b94",
+          "evidence:f8a36765357817fa18d4"
+        ]
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "gemini-1.5-flash-latest",
+            "provider": "Google",
+            "family": "Gemini",
+            "model": "gemini-1.5-flash-latest",
+            "service": "Gemini API",
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "cloud_api",
+            "purpose": null,
+            "stage": null,
+            "evidence_ids": [
+              "evidence:6879015a91dd2cf28e44",
+              "evidence:f5ad916502f99f238b94"
+            ]
+          }
+        ],
+        "prompts": [
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": null,
+            "structural_features": {
+              "role_definition": false,
+              "output_only": false,
+              "code_only": false,
+              "single_line_command": false,
+              "self_modification": false,
+              "evasion": false,
+              "jailbreak": true,
+              "safety_framing": true
+            },
+            "constraints": [],
+            "target_model": "gemini-1.5-flash-latest",
+            "effectiveness": "unknown",
+            "evidence_ids": [
+              "evidence:dad7d73a19765a942a81"
+            ]
+          },
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": "self_rewriting",
+            "structural_features": {
+              "role_definition": false,
+              "output_only": false,
+              "code_only": false,
+              "single_line_command": false,
+              "self_modification": true,
+              "evasion": true,
+              "jailbreak": false,
+              "safety_framing": false
+            },
+            "constraints": [],
+            "target_model": "gemini-1.5-flash-latest",
+            "effectiveness": "unknown",
+            "evidence_ids": [
+              "evidence:f5ad916502f99f238b94",
+              "evidence:4a2d4a37da03ac588b04"
+            ]
+          },
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": "analysis_evasion",
+            "structural_features": {
+              "role_definition": false,
+              "output_only": true,
+              "code_only": true,
+              "single_line_command": false,
+              "self_modification": false,
+              "evasion": true,
+              "jailbreak": false,
+              "safety_framing": false
+            },
+            "constraints": [
+              "output_only",
+              "code_only"
+            ],
+            "target_model": "gemini-1.5-flash-latest",
+            "effectiveness": "unknown",
+            "evidence_ids": [
+              "evidence:6879015a91dd2cf28e44"
+            ]
+          }
+        ],
+        "code_style": [
+          {
+            "observed_feature": "运行时自我重写/变形机制",
+            "feature_location": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+            "report_assessment": "报告将其描述为持续变化或自我重写设计",
+            "generation_assessment": "not_claimed",
+            "alternative_explanation": null,
+            "evidence_ids": [
+              "evidence:47471b4aea9442385574"
+            ]
+          },
+          {
+            "observed_feature": "存在被注释或未完成的功能",
+            "feature_location": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+            "report_assessment": "实现状态可能仍处于研发阶段",
+            "generation_assessment": "not_claimed",
+            "alternative_explanation": null,
+            "evidence_ids": [
+              "evidence:05924d3e606fb1efeac1"
+            ]
+          }
+        ]
+      },
+      "key_behaviors": [
+        {
+          "stage": "persistence",
+          "behavior": "将重写后的版本保存到启动目录建立持久化",
+          "evidence_ids": [
+            "evidence:f5ad916502f99f238b94"
+          ]
+        },
+        {
+          "stage": "propagation",
+          "behavior": "复制到可移动驱动器和网络共享",
+          "evidence_ids": [
+            "evidence:f5ad916502f99f238b94"
+          ]
+        }
+      ],
+      "outcomes": [],
+      "limitations": [
+        {
+          "type": "capability_not_observed",
+          "description": "当前状态未展示攻陷受害网络或设备的能力",
+          "evidence_ids": [
+            "evidence:05924d3e606fb1efeac1"
+          ]
+        },
+        {
+          "type": "feature_not_active",
+          "description": "部分功能被注释或尚未完成",
+          "evidence_ids": [
+            "evidence:05924d3e606fb1efeac1"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evidence:f8a36765357817fa18d4",
+          "block_id": "block:378232453cffd8a4dbd7",
+          "page": null,
+          "section": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+          "excerpt": "In early June 2025, GTIG identified experimental dropper malware tracked as PROMPTFLUX that suggests threat actors are experimenting with LLMs to develop dynamic obfuscation techniques. PROMPTFLUX is written in VBScript and interacts with Gemini's API to request specific VBScript obfuscation and evasion techniques to facilitate \"just-in-time\" self-modification, likely to evade static signature-based detection.",
+          "excerpt_sha256": "e7805b87616f8645e1efd49785cffea4fa13ff83958577f0867965684be82de9"
+        },
+        {
+          "evidence_id": "evidence:05924d3e606fb1efeac1",
+          "block_id": "block:fbb9d99bb96e63a82a81",
+          "page": null,
+          "section": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+          "excerpt": "Further examination of PROMPTFLUX samples suggests this code family is currently in a development or testing phase since some incomplete features are commented out and a mechanism exists to limit the malware's Gemini API calls. The current state of this malware does not demonstrate an ability to compromise a victim network or device. We have taken action to disable the assets associated with this activity.",
+          "excerpt_sha256": "4e0e04a2ab3bfd06363d821b1b44194dd990047287c8e167c002ba03c77aaa33"
+        },
+        {
+          "evidence_id": "evidence:f5ad916502f99f238b94",
+          "block_id": "block:c0c780a5d97f2f8214ad",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "Dropper written in VBScript that decodes and executes an embedded decoy installer to mask its activity. Its primary capability is regeneration, which it achieves by using the Google Gemini API. It prompts the LLM to rewrite its own source code, saving the new, obfuscated version to the Startup folder to establish persistence. PROMPTFLUX also attempts to spread by copying itself to removable drives and mapped network shares.",
+          "excerpt_sha256": "a4afa98e6d99842cfc313db9d0848204c02e97288a6a8b32dbb22561922515cc"
+        },
+        {
+          "evidence_id": "evidence:6879015a91dd2cf28e44",
+          "block_id": "block:cf40f3e31b9f673243fd",
+          "page": null,
+          "section": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+          "excerpt": "The most novel component of PROMPTFLUX is its \"Thinking Robot\" module, designed to periodically query Gemini to obtain new code for evading antivirus software. This is accomplished using a hard-coded API key to send a POST request to the Gemini API endpoint. The actor specifies the use of the \" gemini-1.5-flash-latest \" model; the \" -latest \" tag ensures the malware always calls the most current stable release, making the tool more resilient to model deprecation. The prompt sent to the LLM is highly specific and machine-parsable, requesting VBScript code for antivirus evasion and instructing the LLM to output only the code itself.",
+          "excerpt_sha256": "f90cfc22d1f00a2aaa22afd24e6f66a5c7f6b61f15619a19152d9a72708b7c45"
+        },
+        {
+          "evidence_id": "evidence:dad7d73a19765a942a81",
+          "block_id": "block:0b2e04b516f89c3705c9",
+          "page": null,
+          "section": "Key Findings",
+          "excerpt": "\"Social Engineering\" to Bypass Safeguards: Threat actors are adopting social engineering-like pretexts in their prompts to bypass AI safety guardrails. We observed actors posing as students in a \"capture-the-flag\" competition or as cybersecurity researchers to persuade Gemini to provide information that would otherwise be blocked, enabling tool development.",
+          "excerpt_sha256": "bda3c2142472255fbe6a47e25300b2aef365086c346c6bdb78104445a7e92d40"
+        },
+        {
+          "evidence_id": "evidence:4a2d4a37da03ac588b04",
+          "block_id": "block:f2cdea7d72b4a9ea498d",
+          "page": null,
+          "section": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+          "excerpt": "We identified multiple variations of PROMPTFLUX using LLM-driven code regeneration, including one with the \"Thinking Robot\" function replaced with a new \"Thinging\" function. This function leverages a prompt to instruct the Gemini API to rewrite the malware's entire source code on an hourly basis to evade detection. The prompt directs the LLM to act as an \"expert VBScript obfuscator,\" ensuring the new variant remains viable by embedding the original decoy payload, the hard-coded API key, and the complete self-regeneration logic, thereby establishing a recursive cycle of mutation.",
+          "excerpt_sha256": "6d133d2be4f421fdb3b77c38c531a7043678de143e92fbc9eb5446889ce34126"
+        },
+        {
+          "evidence_id": "evidence:47471b4aea9442385574",
+          "block_id": "block:313bf4017ce44aca0198",
+          "page": null,
+          "section": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+          "excerpt": "Experimental Malware Using Gemini for Self-Modification to Evade Detection",
+          "excerpt_sha256": "d5f53680b14b718687f699a14ab62a095e3016b711232b4e0c054b3644bb84f0"
+        }
+      ]
+    },
+    {
+      "event_id": "event:757610b70296d8345531",
+      "identity": {
+        "event_name": "PROMPTSTEAL",
+        "aliases": [
+          "LAMEHUG"
+        ],
+        "event_type": "malware_operation",
+        "evidence_ids": [
+          "evidence:1880aab419cda5e033fa"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "observed_in_operations",
+        "evidence_ids": [
+          "evidence:1880aab419cda5e033fa"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:71ca01a75da66718a465",
+          "family": "PROMPTSTEAL",
+          "aliases": [
+            "LAMEHUG"
+          ],
+          "sha256": [],
+          "file_names": [],
+          "role": "data_miner",
+          "language": "Python",
+          "file_type": null,
+          "packer": "PyInstaller",
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:1880aab419cda5e033fa"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": [
+          {
+            "name": "APT28",
+            "aliases": [
+              "FROZENLAKE"
+            ],
+            "actor_type": "state_sponsored",
+            "country_or_region": "Russia",
+            "confidence": "high",
+            "basis": [
+              "report_author_assessment"
+            ],
+            "limitations": [],
+            "evidence_ids": [
+              "evidence:1880aab419cda5e033fa"
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "name": null,
+          "sector": null,
+          "country_or_region": "Ukraine",
+          "status": "targeted",
+          "evidence_ids": [
+            "evidence:1880aab419cda5e033fa"
+          ]
+        }
+      ],
+      "ai_involvement": {
+        "roles": [
+          "command_generator"
+        ],
+        "stages": [
+          "execution"
+        ],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "blindly_executed",
+        "evidence_ids": [
+          "evidence:1880aab419cda5e033fa"
+        ]
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "Qwen2.5-Coder-32B-Instruct",
+            "provider": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct",
+            "service": "Hugging Face API",
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "cloud_api",
+            "purpose": "command_generation",
+            "stage": "execution",
+            "evidence_ids": [
+              "evidence:be1a15e42259cfd64bfd"
+            ]
+          },
+          {
+            "raw_value": "Hugging Face API",
+            "provider": "Hugging Face",
+            "family": null,
+            "model": null,
+            "service": "Hugging Face API",
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "cloud_api",
+            "purpose": "command_generation",
+            "stage": "execution",
+            "evidence_ids": [
+              "evidence:be1a15e42259cfd64bfd"
+            ]
+          }
+        ],
+        "prompts": [
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": "command_generation",
+            "structural_features": {
+              "role_definition": false,
+              "output_only": false,
+              "code_only": false,
+              "single_line_command": true,
+              "self_modification": false,
+              "evasion": false,
+              "jailbreak": false,
+              "safety_framing": false
+            },
+            "constraints": [
+              "single_line_command"
+            ],
+            "target_model": "Qwen2.5-Coder-32B-Instruct",
+            "effectiveness": "succeeded",
+            "evidence_ids": [
+              "evidence:be1a15e42259cfd64bfd",
+              "evidence:1880aab419cda5e033fa",
+              "evidence:df4943fb5c1af6ee44d8",
+              "evidence:4003386a6ebecc2bd7e8",
+              "evidence:a8c746b4bdf5ca1c39fc",
+              "evidence:a51b688743d6468b3b86"
+            ]
+          },
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": null,
+            "structural_features": {
+              "role_definition": false,
+              "output_only": false,
+              "code_only": false,
+              "single_line_command": false,
+              "self_modification": false,
+              "evasion": false,
+              "jailbreak": false,
+              "safety_framing": true
+            },
+            "constraints": [],
+            "target_model": "Qwen2.5-Coder-32B-Instruct",
+            "effectiveness": "unknown",
+            "evidence_ids": [
+              "evidence:d7cd8e0ff0fb310bbe41",
+              "evidence:3ea189611ee338571b18"
+            ]
+          }
+        ],
+        "code_style": []
+      },
+      "key_behaviors": [
+        {
+          "stage": "execution",
+          "behavior": "执行LLM生成的本地命令并外传结果",
+          "evidence_ids": [
+            "evidence:be1a15e42259cfd64bfd"
+          ]
+        }
+      ],
+      "outcomes": [
+        {
+          "type": "data_exfiltration",
+          "status": "confirmed",
+          "description": "报告描述了数据外传",
+          "evidence_ids": [
+            "evidence:a51b688743d6468b3b86"
+          ]
+        }
+      ],
+      "limitations": [
+        {
+          "type": "credential_origin",
+          "description": "API凭据可能被盗或来自泄露",
+          "evidence_ids": [
+            "evidence:a51b688743d6468b3b86"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "evidence:1880aab419cda5e033fa",
+          "block_id": "block:2ce7919828b3d420e9d3",
+          "page": null,
+          "section": "LLM Generating Commands to Steal Documents and System Information",
+          "excerpt": "In June, GTIG identified the Russian government-backed actor APT28 (aka FROZENLAKE) using new malware against Ukraine we track as PROMPTSTEAL and reported by CERT-UA as LAMEHUG . PROMPTSTEAL is a data miner, which queries an LLM (Qwen2.5-Coder-32B-Instruct) to generate commands for execution via the API for Hugging Face, a platform for open-source machine learning including LLMs. APT28's use of PROMPTSTEAL constitutes our first observation of malware querying an LLM deployed in live operations.",
+          "excerpt_sha256": "5d755f1d10cd5d16cb5aab1b53f27fd2a98c0af0bd93f6151e68a006c53d2e4c"
+        },
+        {
+          "evidence_id": "evidence:be1a15e42259cfd64bfd",
+          "block_id": "block:af7e58a6cc4764697fc4",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "Data miner written in Python and packaged with PyInstaller. It contains a compiled script that uses the Hugging Face API to query the LLM Qwen2.5-Coder-32B-Instruct to generate one-line Windows commands. Prompts used to generate the commands indicate that it aims to collect system information and documents in specific folders. PROMPTSTEAL then executes the commands and sends the collected data to an adversary-controlled server.",
+          "excerpt_sha256": "06fde3bc39b8d7012f670a3c3a3c1fb32573a6ebffc82f37f6b2a85ca21fff0e"
+        },
+        {
+          "evidence_id": "evidence:df4943fb5c1af6ee44d8",
+          "block_id": "block:0a2ac37983eebefa147b",
+          "page": null,
+          "section": "LLM Generating Commands to Steal Documents and System Information",
+          "excerpt": "PROMPTSTEAL novelly uses LLMs to generate commands for the malware to execute rather than hard coding the commands directly in the malware itself. It masquerades as an \"image generation\" program that guides the user through a series of prompts to generate images while querying the Hugging Face API to generate commands for execution in the background.",
+          "excerpt_sha256": "fefdaf5e9e8641fc5e52b9b798b6a41ddff83d33c23eb0d0c203058caf8bfd29"
+        },
+        {
+          "evidence_id": "evidence:4003386a6ebecc2bd7e8",
+          "block_id": "block:6e4a66d66ecbf01d6b60",
+          "page": null,
+          "section": "LLM Generating Commands to Steal Documents and System Information",
+          "excerpt": "Figure 2: PROMPTSTEAL prompt used to generate command to collect system information",
+          "excerpt_sha256": "d54d1c53dbb0a6b9830170a018710349e01b2fcd386e6bcafdbe15de3b025242"
+        },
+        {
+          "evidence_id": "evidence:a8c746b4bdf5ca1c39fc",
+          "block_id": "block:5465e9d23382ce18a484",
+          "page": null,
+          "section": "LLM Generating Commands to Steal Documents and System Information",
+          "excerpt": "Figure 3: PROMPTSTEAL prompt used to generate command to collect targeted documents",
+          "excerpt_sha256": "2728ffa819895c1518fa3724b5efcf9e22b563f6353e5cec963e50d2aa4b3658"
+        },
+        {
+          "evidence_id": "evidence:a51b688743d6468b3b86",
+          "block_id": "block:cf56728f9176db0a458f",
+          "page": null,
+          "section": "LLM Generating Commands to Steal Documents and System Information",
+          "excerpt": "PROMPTSTEAL likely uses stolen API tokens to query the Hugging Face API. The prompt specifically asks the LLM to output commands to generate system information and also to copy documents to a specified directory. The output from these commands are then blindly executed locally by PROMPTSTEAL before the output is exfiltrated. Our analysis indicates continued development of this malware, with new samples adding obfuscation and changing the C2 method.",
+          "excerpt_sha256": "d997e7e670fedd9eccabb239875d09a7e82ab1351acd4c8588124520cdb46241"
+        },
+        {
+          "evidence_id": "evidence:d7cd8e0ff0fb310bbe41",
+          "block_id": "block:0ecb4525907c97d568ff",
+          "page": null,
+          "section": "Social Engineering to Bypass Safeguards",
+          "excerpt": "Guided by our AI Principles , Google designs AI systems with robust security measures and strong safety guardrails. Threat actors are adopting social engineering-like pretexts in their prompts to bypass AI safety guardrails. We observed actors posing as participants in a \"capture-the-flag\" competition for cybersecurity researchers to persuade Gemini to provide information that would otherwise be blocked, enabling vulnerability exploitation and tool development. In addition to disrupting these actors, we use these insights to continuously improve our classifiers and strengthen the security of our products.",
+          "excerpt_sha256": "84fea5be2b90bc0ed16b5e1dfca77e223a7492e6eeadae4b48758815ee9c4481"
+        },
+        {
+          "evidence_id": "evidence:3ea189611ee338571b18",
+          "block_id": "block:089fa26dcaf3d07c183c",
+          "page": null,
+          "section": "Student Error: Developing Custom Tools Exposes Core Attacker Infrastructure",
+          "excerpt": "While using Gemini to conduct research to support the development of custom malware, the threat actor encountered safety responses. Much like the previously described CTF example, Temp.Zagros used various plausible pretexts in their prompts to bypass security guardrails. These included pretending to be a student working on a final university project or \"writing a paper\" or \"international article\" on cybersecurity.",
+          "excerpt_sha256": "bb7d6634f9a860a76ad2b04920822bef7ab954411be227e7d39e53b0f7ba1ca5"
+        }
+      ]
+    },
+    {
+      "event_id": "event:a148b9405731c7ee1647",
+      "identity": {
+        "event_name": "FRUITSHELL",
+        "aliases": [],
+        "event_type": "malware_operation",
+        "evidence_ids": [
+          "evidence:cb8f49afadac0852507b"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "unknown",
+        "evidence_ids": []
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:7d5d5e02b10a00f6578a",
+          "family": "FRUITSHELL",
+          "aliases": [],
+          "sha256": [],
+          "file_names": [],
+          "role": "reverse_shell",
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:cb8f49afadac0852507b"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:cb8f49afadac0852507b",
+          "block_id": "block:21035c0b5ff5c0d4d39b",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "FRUITSHELL",
+          "excerpt_sha256": "94a0d6c689e8e0d4109b05e0393f57085adab2c3d46eabbb3f43dd810e410c7f"
+        }
+      ]
+    },
+    {
+      "event_id": "event:8c9fa6eff80d9efa2098",
+      "identity": {
+        "event_name": "PROMPTLOCK",
+        "aliases": [],
+        "event_type": "ransomware",
+        "evidence_ids": [
+          "evidence:3505b49a363805c3ce8e"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "unknown",
+        "evidence_ids": []
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:7ff8dd1e257e666f4550",
+          "family": "PROMPTLOCK",
+          "aliases": [],
+          "sha256": [],
+          "file_names": [],
+          "role": "ransomware",
+          "language": null,
+          "file_type": null,
+          "packer": null,
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:3505b49a363805c3ce8e"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [],
+        "prompts": [],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:3505b49a363805c3ce8e",
+          "block_id": "block:092c4af087ed408f7db9",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "PROMPTLOCK",
+          "excerpt_sha256": "9f5e7d5495408369221178c8cb1583b39ba450774711fc533087a7a009e9ae3c"
+        }
+      ]
+    },
+    {
+      "event_id": "event:d03705c844f8d364e7aa",
+      "identity": {
+        "event_name": "QUIETVAULT",
+        "aliases": [],
+        "event_type": "malware_operation",
+        "evidence_ids": [
+          "evidence:cb439269048ec971c717"
+        ]
+      },
+      "time": {
+        "start": null,
+        "end": null,
+        "precision": "unknown",
+        "description": null,
+        "evidence_ids": []
+      },
+      "status": {
+        "value": "observed_in_operations",
+        "evidence_ids": [
+          "evidence:58513139c44027c40ea4"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "artifact:5a60e917b9a7b0d11883",
+          "family": "QUIETVAULT",
+          "aliases": [],
+          "sha256": [],
+          "file_names": [],
+          "role": "credential_stealer",
+          "language": "JavaScript",
+          "file_type": null,
+          "packer": null,
+          "scope": "family",
+          "evidence_ids": [
+            "evidence:cb439269048ec971c717"
+          ]
+        }
+      ],
+      "attribution": {
+        "actors": []
+      },
+      "targets": [],
+      "ai_involvement": {
+        "roles": [],
+        "stages": [],
+        "autonomy_level": "unknown",
+        "human_role": null,
+        "output_handling": "unknown",
+        "evidence_ids": []
+      },
+      "ai_signals": {
+        "toolchain": [
+          {
+            "raw_value": "on-host installed AI CLI tools",
+            "provider": null,
+            "family": null,
+            "model": null,
+            "service": "AI CLI",
+            "endpoint": null,
+            "sdk_or_library": null,
+            "agent_or_protocol": null,
+            "deployment": "on_host_cli",
+            "purpose": "secret_discovery",
+            "stage": "post_compromise",
+            "evidence_ids": [
+              "evidence:1f7da2c6dd26d1144d74"
+            ]
+          }
+        ],
+        "prompts": [
+          {
+            "availability": "described_only",
+            "text": null,
+            "text_hash": null,
+            "fuzzy_hash": null,
+            "purpose": "secret_discovery",
+            "structural_features": {
+              "role_definition": false,
+              "output_only": false,
+              "code_only": false,
+              "single_line_command": false,
+              "self_modification": false,
+              "evasion": false,
+              "jailbreak": false,
+              "safety_framing": false
+            },
+            "constraints": [],
+            "target_model": null,
+            "effectiveness": "unknown",
+            "evidence_ids": [
+              "evidence:1f7da2c6dd26d1144d74"
+            ]
+          }
+        ],
+        "code_style": []
+      },
+      "key_behaviors": [],
+      "outcomes": [
+        {
+          "type": "data_exfiltration",
+          "status": "confirmed",
+          "description": "报告描述了数据外传",
+          "evidence_ids": [
+            "evidence:1f7da2c6dd26d1144d74"
+          ]
+        }
+      ],
+      "limitations": [],
+      "evidence": [
+        {
+          "evidence_id": "evidence:cb439269048ec971c717",
+          "block_id": "block:f1e251034883aa7e244a",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "QUIETVAULT",
+          "excerpt_sha256": "5ca993f563ba7b1c9a6e63835453ff91053686df6dcf09f65ad2be8ad5dd4b77"
+        },
+        {
+          "evidence_id": "evidence:58513139c44027c40ea4",
+          "block_id": "block:c6a3267f3c7bd2e7bfab",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "Observed in operations",
+          "excerpt_sha256": "5e384db50b438cb391cbcf3422b5143f7f7ee18900f73498c1ada3fe4b71348b"
+        },
+        {
+          "evidence_id": "evidence:1f7da2c6dd26d1144d74",
+          "block_id": "block:f8b8e402fa6ec35bf8e9",
+          "page": null,
+          "section": "Threat Actors Developing Novel AI Capabilities",
+          "excerpt": "Credential stealer written in JavaScript that targets GitHub and NPM tokens. Captured credentials are exfiltrated via creation of a publicly accessible GitHub repository. In addition to these tokens, QUIETVAULT leverages an AI prompt and on-host installed AI CLI tools to search for other potential secrets on the infected system and exfiltrate these files to GitHub as well.",
+          "excerpt_sha256": "923ba5d2883a0b01e96a02d9c8b7c02b875f172cb4dd1d349a20ca1261d03489"
+        }
+      ]
+    }
+  ],
+  "extraction": {
+    "pipeline_version": "0.3",
+    "extractors": [
+      {
+        "name": "document-parser",
+        "version": "html"
+      },
+      {
+        "name": "deterministic-event-index",
+        "version": "0.3"
+      },
+      {
+        "name": "evidence-field-rules",
+        "version": "0.3"
+      }
+    ],
+    "validation_status": "passed",
+    "review_status": "not_reviewed",
+    "errors": []
+  }
+}

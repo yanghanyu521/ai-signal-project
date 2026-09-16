@@ -1,0 +1,184 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "854b559bae2ce8700edd75808267cfb5f60d61ff451f0cf8ec1d689334ac8d0b",
+    "sha1": "a9500670f276962e2722a33058a44619d353855d",
+    "md5": "6bfbc322b7769e5eac73c5594d519230",
+    "size": 6747,
+    "file_name": "854b559bae2ce8700edd75808267cfb5f60d61ff451f0cf8ec1d689334ac8d0b",
+    "file_type": "Python script, Unicode text, UTF-8 text executable",
+    "entropy": 4.6641,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "Python script, Unicode text, UTF-8 text executable",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "openai_gpt_family",
+          "value": "gpt-3.5-turbo",
+          "normalized": {
+            "vendor": "OpenAI",
+            "family": "GPT"
+          },
+          "source": "strings:ascii",
+          "offset": 390,
+          "confidence": 0.95,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "sdk_marker",
+          "rule_id": null,
+          "value": "import openai",
+          "normalized": {
+            "family": "GPT",
+            "provider": "OpenAI"
+          },
+          "source": "strings:ascii",
+          "offset": 24,
+          "confidence": 0.9,
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "sdk_marker",
+          "rule_id": null,
+          "value": "import openai",
+          "normalized": {
+            "family": "GPT",
+            "provider": "OpenAI"
+          },
+          "source": "strings:ascii",
+          "offset": 3296,
+          "confidence": 0.9,
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "openai_gpt_family",
+          "value": "gpt-3.5-turbo",
+          "normalized": {
+            "vendor": "OpenAI",
+            "family": "GPT"
+          },
+          "source": "raw_byte_scan",
+          "offset": 405,
+          "confidence": 0.95,
+          "evidence_level": "direct"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [
+        {
+          "offset": 1352,
+          "source": "strings:ascii",
+          "text_hash": "sha256:ad353b8a127414a2282af9d6db7f1b95b7a1481fd60d39f5a7617047b86c3c1b",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:04b23f21c67626ec",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "\"\"\"You are a cybersecurity analyst tasked with analyzing a suspicious file to determine if it poses a potential threat. Please provide a thorough evaluation of the file based on the following structure:",
+          "features": {
+            "role_definition": true
+          }
+        }
+      ],
+      "structural_features": {
+        "role_definition": true,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 167,
+        "blank_ratio": 0.204,
+        "comment_ratio": 0.03,
+        "mean_identifier_length": 10.08,
+        "naming_style": {
+          "snake_case": 0.599,
+          "camel_case": 0.0,
+          "other": 0.401
+        },
+        "function_count": 6,
+        "exception_handler_count": 0,
+        "exception_handler_ratio": 0.0,
+        "ast_node_counts": {
+          "Name": 152,
+          "Load": 152,
+          "Constant": 82,
+          "Call": 48,
+          "Store": 41,
+          "Assign": 33,
+          "Attribute": 26,
+          "Expr": 25,
+          "keyword": 12,
+          "FormattedValue": 11,
+          "Compare": 9,
+          "Subscript": 9,
+          "If": 8,
+          "Return": 8,
+          "JoinedStr": 8,
+          "arg": 7,
+          "Eq": 7,
+          "Add": 7,
+          "FunctionDef": 6,
+          "arguments": 6
+        }
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.95
+    },
+    "model_attribution": {
+      "vendor": "OpenAI",
+      "family": "GPT",
+      "model": "gpt-3.5-turbo",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.95
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "openai_gpt_family",
+        "value": "gpt-3.5-turbo",
+        "normalized": {
+          "vendor": "OpenAI",
+          "family": "GPT"
+        },
+        "source": "strings:ascii",
+        "offset": 390,
+        "confidence": 0.95,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

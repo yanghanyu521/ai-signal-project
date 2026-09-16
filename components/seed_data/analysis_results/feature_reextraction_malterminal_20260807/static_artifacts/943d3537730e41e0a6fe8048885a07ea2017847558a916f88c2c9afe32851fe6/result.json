@@ -1,0 +1,102 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "943d3537730e41e0a6fe8048885a07ea2017847558a916f88c2c9afe32851fe6",
+    "sha1": "d37294f670424e3a10aa4c0a669de928ed002031",
+    "md5": "74f1ed0c2ab53a24488bbdd8d7a327de",
+    "size": 769,
+    "file_name": "943d3537730e41e0a6fe8048885a07ea2017847558a916f88c2c9afe32851fe6",
+    "file_type": "Python script, ASCII text executable, with CRLF line terminators",
+    "entropy": 4.6233,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "Python script, ASCII text executable, with CRLF line terminators",
+      "packaging_candidates": [],
+      "evidence": []
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 27,
+        "blank_ratio": 0.185,
+        "comment_ratio": 0.0,
+        "mean_identifier_length": 6.72,
+        "naming_style": {
+          "snake_case": 0.24,
+          "camel_case": 0.0,
+          "other": 0.76
+        },
+        "function_count": 1,
+        "exception_handler_count": 0,
+        "exception_handler_ratio": 0.0,
+        "ast_node_counts": {
+          "Load": 28,
+          "Name": 25,
+          "Constant": 11,
+          "Call": 8,
+          "Expr": 6,
+          "Attribute": 6,
+          "Store": 5,
+          "Assign": 4,
+          "If": 3,
+          "Compare": 3,
+          "Import": 2,
+          "alias": 2,
+          "Eq": 2,
+          "JoinedStr": 2,
+          "FormattedValue": 2,
+          "Module": 1,
+          "FunctionDef": 1,
+          "arguments": 1,
+          "For": 1,
+          "arg": 1
+        }
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "unknown",
+      "confidence": 0.0
+    },
+    "model_attribution": {
+      "vendor": null,
+      "family": "unknown",
+      "model": null,
+      "decision_method": "unknown",
+      "confidence": 0.0
+    },
+    "evidence_summary": []
+  },
+  "errors": []
+}

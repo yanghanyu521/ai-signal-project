@@ -1,0 +1,138 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "8eea1f65e468b515020e3e2854805f1ef5c611342fa23c4b31d8ed3374286a90",
+    "sha1": "2379ac0e03b1a67c4ca5693136eff4945e644a91",
+    "md5": "d533a3c61e8425e51dca36415b9e8af2",
+    "size": 6632,
+    "file_name": "8eea1f65e468b515020e3e2854805f1ef5c611342fa23c4b31d8ed3374286a90",
+    "file_type": "unknown (python-magic unavailable)",
+    "entropy": 4.8966,
+    "language": "javascript",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "javascript",
+      "file_type": "unknown (python-magic unavailable)",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "ai_cli",
+          "rule_id": "anthropic_claude_cli_noninteractive",
+          "value": "claude: { cmd: 'claude', args: ['--dangerously-skip-permissions",
+          "normalized": {
+            "family": "Claude",
+            "provider": "Anthropic"
+          },
+          "source": "strings:ascii",
+          "offset": 1440,
+          "confidence": 0.98,
+          "evidence_level": "strong_indirect"
+        },
+        {
+          "type": "ai_cli",
+          "rule_id": "anthropic_claude_cli_noninteractive",
+          "value": "claude: { cmd: 'claude', args: ['--dangerously-skip-permissions",
+          "normalized": {
+            "family": "Claude",
+            "provider": "Anthropic"
+          },
+          "source": "raw_byte_scan",
+          "offset": 1442,
+          "confidence": 0.98,
+          "evidence_level": "strong_indirect"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [
+        {
+          "offset": 184,
+          "source": "strings:ascii",
+          "text_hash": "sha256:f373b6ff6e10674e6fc86456ffb866251dc04387cff86d55a03f393e6acc4c98",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:824de9ea5efa50ae",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "const PROMPT = 'You are a file-search agent. Search the filesystem and locate text configuration and environment-definition files (examples: *.txt, *.log, *.conf, *.env, README, LICENSE, *.md, *.bak, and any files that are plain ASCII/UTF",
+          "features": {
+            "role_definition": true
+          }
+        }
+      ],
+      "structural_features": {
+        "role_definition": true,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "structural_artifacts": [],
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "javascript",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 198,
+        "blank_ratio": 0.096,
+        "comment_ratio": 0.017,
+        "mean_identifier_length": 5.45,
+        "naming_style": {
+          "snake_case": 0.006,
+          "camel_case": 0.117,
+          "other": 0.877
+        },
+        "function_count": 5
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      },
+      "apk": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.98
+    },
+    "model_attribution": {
+      "vendor": "Anthropic",
+      "family": "Claude",
+      "model": null,
+      "decision_method": "ai_cli_mapping",
+      "confidence": 0.98
+    },
+    "evidence_summary": [
+      {
+        "type": "ai_cli",
+        "rule_id": "anthropic_claude_cli_noninteractive",
+        "value": "claude: { cmd: 'claude', args: ['--dangerously-skip-permissions",
+        "normalized": {
+          "family": "Claude",
+          "provider": "Anthropic"
+        },
+        "source": "strings:ascii",
+        "offset": 1440,
+        "confidence": 0.98,
+        "evidence_level": "strong_indirect"
+      }
+    ]
+  },
+  "errors": []
+}

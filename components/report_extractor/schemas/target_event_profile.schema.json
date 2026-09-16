@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Target Event Profile v0.1",
+  "type": "object",
+  "required": ["profile_version", "family", "report", "selection", "event", "field_assessments", "extraction"],
+  "properties": {
+    "profile_version": {"const": "0.1"},
+    "family": {"type": "string", "minLength": 1},
+    "report": {"type": "object"},
+    "selection": {
+      "type": "object",
+      "required": ["target_family", "target_aliases", "event_id", "event_name", "method", "excluded_events"],
+      "properties": {
+        "target_family": {"type": "string"},
+        "target_aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "event_id": {"type": "string"},
+        "event_name": {"type": "string"},
+        "method": {"enum": ["identity_exact", "identity_alias", "artifact_family"]},
+        "excluded_events": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": false
+    },
+    "event": {"type": "object", "required": ["event_id", "identity", "evidence"]},
+    "field_assessments": {"type": "array", "items": {"$ref": "#/$defs/assessment"}},
+    "extraction": {
+      "type": "object",
+      "required": ["report_validation_status", "llm_enabled", "profile_validation_status", "errors"],
+      "properties": {
+        "report_validation_status": {"enum": ["passed", "warnings", "failed"]},
+        "llm_enabled": {"type": "boolean"},
+        "profile_validation_status": {"enum": ["passed", "failed"]},
+        "errors": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "assessment": {
+      "type": "object",
+      "required": ["assessment_id", "field_path", "conclusion", "claim_type", "assertion_status", "author_confidence", "extractor_method", "extractor_confidence", "evidence_strength", "evidence_ids", "rationale"],
+      "properties": {
+        "assessment_id": {"type": "string"},
+        "field_path": {"type": "string"},
+        "conclusion": {},
+        "claim_type": {"enum": ["direct_observation", "author_assessment", "author_inference", "methodology", "limitation", "negative_evidence"]},
+        "assertion_status": {"enum": ["asserted", "likely", "possible", "speculative", "denied", "unknown"]},
+        "author_confidence": {"enum": ["explicit_high", "explicit_medium", "explicit_low", "implicit", "not_stated"]},
+        "extractor_method": {"enum": ["deterministic_rule", "deepseek_candidate", "hybrid"]},
+        "extractor_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "evidence_strength": {"enum": ["confirmed", "strong", "moderate", "weak", "unknown"]},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true, "minItems": 1},
+        "rationale": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

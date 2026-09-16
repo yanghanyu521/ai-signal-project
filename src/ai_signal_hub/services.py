@@ -470,14 +470,14 @@ class HubService:
             "errors": [],
         }
         if include_samples:
-            manifest_path = self.settings.legacy_sample_project / "样本清单" / "已完成特征提取样本清单.csv"
-            legacy_root = self.settings.legacy_sample_project.resolve()
+            manifest_path = self.settings.seed_data_dir / "样本清单" / "已完成特征提取样本清单.csv"
+            seed_root = self.settings.seed_data_dir.resolve()
             with manifest_path.open("r", encoding="utf-8-sig", newline="") as handle:
                 for row in csv.DictReader(handle):
                     try:
-                        result_path = (legacy_root / row["结果位置"]).resolve()
-                        if legacy_root not in result_path.parents:
-                            raise ValueError("样本清单结果路径越界")
+                        result_path = (seed_root / row["结果位置"]).resolve()
+                        if seed_root not in result_path.parents:
+                            raise ValueError("种子样本结果路径越界")
                         if not result_path.is_file():
                             summary["samples_missing"] += 1
                             continue
@@ -492,7 +492,7 @@ class HubService:
                     except Exception as exc:
                         summary["errors"].append({"stage": "sample_import", "sha256": row.get("SHA-256"), "message": str(exc)})
         if include_events:
-            event_path = self.settings.legacy_sample_project / "week1_research" / "ai_attack_events.csv"
+            event_path = self.settings.seed_data_dir / "ai_attack_events.csv"
             with event_path.open("r", encoding="utf-8-sig", newline="") as handle:
                 for row in csv.DictReader(handle):
                     try:
@@ -501,10 +501,10 @@ class HubService:
                     except Exception as exc:
                         summary["errors"].append({"stage": "event_import", "event_id": row.get("event_id"), "message": str(exc)})
         if include_reports:
-            report_root = self.settings.legacy_report_project / "artifacts" / "family_batch_20260831_final_v8"
-            for path in report_root.glob("*/report_deterministic/report_events.json"):
+            report_root = self.settings.seed_data_dir / "reports"
+            for path in report_root.glob("*/report_events.json"):
                 try:
-                    family = path.parents[1].name
+                    family = path.parent.name
                     result = json.loads(path.read_text(encoding="utf-8"))
                     saved_report = self.repository.upsert_report(
                         result,

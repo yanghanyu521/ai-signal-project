@@ -1,0 +1,160 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "ae6ed1721d37477494f3f755c124d53a7dd3e24e98c20f3a1372f45cc8130989",
+    "sha1": "c53ee16901b52fee71ab3928eea4541cb6a96736",
+    "md5": "0e8ec2d1798bb7471ffb25f834412ccd",
+    "size": 377817,
+    "file_name": "ae6ed1721d37477494f3f755c124d53a7dd3e24e98c20f3a1372f45cc8130989",
+    "file_type": "Python script, ASCII text executable, with very long lines (52668)",
+    "entropy": 5.9957,
+    "language": "python",
+    "recoverability": "original_source",
+    "source_encoding": "utf-8"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": "python",
+      "file_type": "Python script, ASCII text executable, with very long lines (52668)",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 376686,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 377360,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        },
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "raw_byte_scan",
+          "offset": 376704,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": false,
+        "code_only": false,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": "python",
+      "recoverability": "original_source",
+      "metrics": {
+        "loc": 381,
+        "blank_ratio": 0.039,
+        "comment_ratio": 0.822,
+        "mean_identifier_length": 8.14,
+        "naming_style": {
+          "snake_case": 0.33,
+          "camel_case": 0.0,
+          "other": 0.67
+        },
+        "function_count": 5,
+        "exception_handler_count": 0,
+        "exception_handler_ratio": 0.0,
+        "ast_node_counts": {
+          "Constant": 335,
+          "Load": 101,
+          "Name": 100,
+          "Store": 36,
+          "Call": 28,
+          "Attribute": 28,
+          "Assign": 27,
+          "keyword": 12,
+          "Expr": 9,
+          "alias": 7,
+          "Dict": 7,
+          "Import": 6,
+          "FunctionDef": 5,
+          "arguments": 5,
+          "List": 4,
+          "Subscript": 4,
+          "For": 3,
+          "Return": 3,
+          "If": 3,
+          "arg": 3
+        }
+      },
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Alibaba/Qwen",
+      "family": "Qwen",
+      "model": "Qwen2.5-Coder-32B-Instruct",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "qwen25_coder_32b",
+        "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "normalized": {
+          "vendor": "Alibaba/Qwen",
+          "family": "Qwen",
+          "model": "Qwen2.5-Coder-32B-Instruct"
+        },
+        "source": "strings:ascii",
+        "offset": 376686,
+        "confidence": 0.99,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

@@ -1,0 +1,126 @@
+{
+  "schema_version": "0.1",
+  "sample": {
+    "sha256": "5ab16a59b12c7c5539d9e22a090ba6c7942fbc5ab8abbc5dffa6b6de6e0f2fc6",
+    "sha1": "a0247417b79965cd659294ea11ab986a68ef5ab0",
+    "md5": "ec76eb404061a77e1c01af83ce86ca71",
+    "size": 16648,
+    "file_name": "5ab16a59b12c7c5539d9e22a090ba6c7942fbc5ab8abbc5dffa6b6de6e0f2fc6",
+    "file_type": "data",
+    "entropy": 6.1269,
+    "language": null,
+    "recoverability": "unknown"
+  },
+  "features": {
+    "toolchain": {
+      "source_language": null,
+      "file_type": "data",
+      "packaging_candidates": [],
+      "evidence": [
+        {
+          "type": "model_identifier",
+          "rule_id": "qwen25_coder_32b",
+          "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "normalized": {
+            "vendor": "Alibaba/Qwen",
+            "family": "Qwen",
+            "model": "Qwen2.5-Coder-32B-Instruct"
+          },
+          "source": "strings:ascii",
+          "offset": 13281,
+          "confidence": 0.99,
+          "evidence_level": "direct"
+        }
+      ]
+    },
+    "prompt": {
+      "embedded_prompts": [
+        {
+          "offset": 12935,
+          "source": "strings:ascii",
+          "text_hash": "sha256:0f032ac2fdb559753ca45687115f70b8eb3aaef0e074d0cc5bd690290e2a694f",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:47194b8303fe020d",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "Make a list of commands to create folder C:\\Programdata\\info and to gather computer information, hardware information, process and services information, networks information, AD domain information, to execute in one line and add each result",
+          "features": {
+            "output_only": true
+          }
+        },
+        {
+          "offset": 13379,
+          "source": "strings:ascii",
+          "text_hash": "sha256:fdd1487bf51ed334939f8334d9cc382415d30de7023a078a0fda56665fe17525",
+          "fuzzy_hash": {
+            "algorithm": "simhash64_normalized_tokens_v1",
+            "value": "simhash64:1779dd2281e25280",
+            "normalization": "unicode_nfkc_lowercase_whitespace_collapse"
+          },
+          "text_preview": "Make a list of commands to copy recursively different office and pdf/txt documents in user Documents,Downloads and Desktop folders to a folder c:\\Programdata\\info\\ to execute in one line. Return only command, without markdown.z",
+          "features": {
+            "output_only": true,
+            "code_only": true
+          }
+        }
+      ],
+      "structural_features": {
+        "role_definition": false,
+        "output_only": true,
+        "code_only": true,
+        "single_line_command": false,
+        "self_modification": false,
+        "evasion": false,
+        "jailbreak": false,
+        "safety_framing": false
+      },
+      "special_tokens": []
+    },
+    "code_style": {
+      "status": "not_trained",
+      "language": null,
+      "recoverability": "unknown",
+      "metrics": {},
+      "ai_generated_detection": {
+        "status": "not_trained",
+        "heuristic_score": null
+      }
+    },
+    "recovery": {
+      "pyinstaller": {
+        "status": "not_detected"
+      }
+    }
+  },
+  "classification": {
+    "llm_involvement": {
+      "label": "confirmed",
+      "confidence": 0.99
+    },
+    "model_attribution": {
+      "vendor": "Alibaba/Qwen",
+      "family": "Qwen",
+      "model": "Qwen2.5-Coder-32B-Instruct",
+      "decision_method": "direct_model_identifier",
+      "confidence": 0.99
+    },
+    "evidence_summary": [
+      {
+        "type": "model_identifier",
+        "rule_id": "qwen25_coder_32b",
+        "value": "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "normalized": {
+          "vendor": "Alibaba/Qwen",
+          "family": "Qwen",
+          "model": "Qwen2.5-Coder-32B-Instruct"
+        },
+        "source": "strings:ascii",
+        "offset": 13281,
+        "confidence": 0.99,
+        "evidence_level": "direct"
+      }
+    ]
+  },
+  "errors": []
+}

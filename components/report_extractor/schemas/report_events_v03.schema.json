@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Report Event Extraction v0.3",
+  "type": "object",
+  "required": ["schema_version", "report", "events", "extraction"],
+  "properties": {
+    "schema_version": {"const": "0.3"},
+    "report": {
+      "type": "object",
+      "required": ["report_id", "title", "publisher", "publication_date", "url", "file_name", "content_type", "language", "content_sha256"],
+      "properties": {
+        "report_id": {"type": "string"},
+        "title": {"type": "string"},
+        "publisher": {"type": ["string", "null"]},
+        "publication_date": {"$ref": "#/$defs/dateValue"},
+        "url": {"type": ["string", "null"]},
+        "file_name": {"type": "string"},
+        "content_type": {"enum": ["pdf", "html", "docx", "text"]},
+        "language": {"type": ["string", "null"]},
+        "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "events": {"type": "array", "items": {"$ref": "#/$defs/event"}},
+    "extraction": {
+      "type": "object",
+      "required": ["pipeline_version", "extractors", "validation_status", "review_status", "errors"],
+      "properties": {
+        "pipeline_version": {"const": "0.3"},
+        "extractors": {"type": "array", "items": {"type": "object"}},
+        "validation_status": {"enum": ["passed", "warnings", "failed"]},
+        "review_status": {"enum": ["not_reviewed", "needs_review", "reviewed"]},
+        "errors": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "evidenceRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "dateValue": {
+      "type": "object",
+      "required": ["value", "precision", "raw"],
+      "properties": {
+        "value": {"type": ["string", "null"]},
+        "precision": {"enum": ["day", "month", "quarter", "year", "range", "unknown"]},
+        "raw": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["event_id", "identity", "time", "status", "artifacts", "attribution", "targets", "ai_involvement", "ai_signals", "key_behaviors", "outcomes", "limitations", "evidence"],
+      "properties": {
+        "event_id": {"type": "string"},
+        "identity": {
+          "type": "object",
+          "required": ["event_name", "aliases", "event_type", "evidence_ids"],
+          "properties": {
+            "event_name": {"type": "string"},
+            "aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+            "event_type": {"enum": ["malware_operation", "intrusion", "cyber_espionage", "ransomware", "proof_of_concept", "research", "unknown"]},
+            "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+          },
+          "additionalProperties": false
+        },
+        "time": {
+          "type": "object",
+          "required": ["start", "end", "precision", "description", "evidence_ids"],
+          "properties": {
+            "start": {"type": ["string", "null"]}, "end": {"type": ["string", "null"]},
+            "precision": {"enum": ["day", "month", "quarter", "year", "range", "unknown"]},
+            "description": {"type": ["string", "null"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+          },
+          "additionalProperties": false
+        },
+        "status": {
+          "type": "object", "required": ["value", "evidence_ids"],
+          "properties": {"value": {"enum": ["experimental", "proof_of_concept", "development_or_testing", "observed_in_operations", "confirmed_intrusion", "attempted", "unknown"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}},
+          "additionalProperties": false
+        },
+        "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+        "attribution": {
+          "type": "object", "required": ["actors"],
+          "properties": {"actors": {"type": "array", "items": {"$ref": "#/$defs/actor"}}}, "additionalProperties": false
+        },
+        "targets": {"type": "array", "items": {"$ref": "#/$defs/target"}},
+        "ai_involvement": {
+          "type": "object", "required": ["roles", "stages", "autonomy_level", "human_role", "output_handling", "evidence_ids"],
+          "properties": {
+            "roles": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+            "stages": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+            "autonomy_level": {"enum": ["advisory", "human_in_loop", "human_on_loop", "unattended", "unknown"]},
+            "human_role": {"type": ["string", "null"]},
+            "output_handling": {"enum": ["blindly_executed", "reviewed", "saved_to_file", "unknown"]},
+            "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+          }, "additionalProperties": false
+        },
+        "ai_signals": {
+          "type": "object", "required": ["toolchain", "prompts", "code_style"],
+          "properties": {
+            "toolchain": {"type": "array", "items": {"$ref": "#/$defs/toolchain"}},
+            "prompts": {"type": "array", "items": {"$ref": "#/$defs/prompt"}},
+            "code_style": {"type": "array", "items": {"$ref": "#/$defs/codeStyle"}}
+          }, "additionalProperties": false
+        },
+        "key_behaviors": {"type": "array", "items": {"$ref": "#/$defs/behavior"}},
+        "outcomes": {"type": "array", "items": {"$ref": "#/$defs/outcome"}},
+        "limitations": {"type": "array", "items": {"$ref": "#/$defs/limitation"}},
+        "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}}
+      }, "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object", "required": ["artifact_id", "family", "aliases", "sha256", "file_names", "role", "language", "file_type", "packer", "scope", "evidence_ids"],
+      "properties": {
+        "artifact_id": {"type": "string"}, "family": {"type": ["string", "null"]},
+        "aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "sha256": {"type": "array", "items": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}, "uniqueItems": true},
+        "file_names": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "role": {"type": ["string", "null"]}, "language": {"type": ["string", "null"]},
+        "file_type": {"type": ["string", "null"]}, "packer": {"type": ["string", "null"]},
+        "scope": {"enum": ["exact_sample", "sample_set", "family", "artifact_only", "unknown"]},
+        "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+      }, "additionalProperties": false
+    },
+    "actor": {
+      "type": "object", "required": ["name", "aliases", "actor_type", "country_or_region", "confidence", "basis", "limitations", "evidence_ids"],
+      "properties": {
+        "name": {"type": "string"}, "aliases": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "actor_type": {"enum": ["state_sponsored", "cybercrime", "researcher", "unknown"]},
+        "country_or_region": {"type": ["string", "null"]},
+        "confidence": {"enum": ["high", "medium", "low", "not_stated"]},
+        "basis": {"type": "array", "items": {"type": "string"}}, "limitations": {"type": "array", "items": {"type": "string"}},
+        "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+      }, "additionalProperties": false
+    },
+    "target": {
+      "type": "object", "required": ["name", "sector", "country_or_region", "status", "evidence_ids"],
+      "properties": {"name": {"type": ["string", "null"]}, "sector": {"type": ["string", "null"]}, "country_or_region": {"type": ["string", "null"]}, "status": {"enum": ["targeted", "attempted", "compromised", "unknown"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}},
+      "additionalProperties": false
+    },
+    "toolchain": {
+      "type": "object", "required": ["raw_value", "provider", "family", "model", "service", "endpoint", "sdk_or_library", "agent_or_protocol", "deployment", "purpose", "stage", "evidence_ids"],
+      "properties": {
+        "raw_value": {"type": ["string", "null"]}, "provider": {"type": ["string", "null"]}, "family": {"type": ["string", "null"]}, "model": {"type": ["string", "null"]},
+        "service": {"type": ["string", "null"]}, "endpoint": {"type": ["string", "null"]}, "sdk_or_library": {"type": ["string", "null"]}, "agent_or_protocol": {"type": ["string", "null"]},
+        "deployment": {"enum": ["cloud_api", "local_model", "on_host_cli", "unknown"]}, "purpose": {"type": ["string", "null"]}, "stage": {"type": ["string", "null"]},
+        "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+      }, "additionalProperties": false
+    },
+    "prompt": {
+      "type": "object", "required": ["availability", "text", "text_hash", "fuzzy_hash", "purpose", "structural_features", "constraints", "target_model", "effectiveness", "evidence_ids"],
+      "properties": {
+        "availability": {"enum": ["full_text", "partial_text", "described_only"]}, "text": {"type": ["string", "null"]}, "text_hash": {"type": ["string", "null"]}, "fuzzy_hash": {"type": ["string", "null"]},
+        "purpose": {"type": ["string", "null"]},
+        "structural_features": {"type": "object", "required": ["role_definition", "output_only", "code_only", "single_line_command", "self_modification", "evasion", "jailbreak", "safety_framing"], "properties": {"role_definition": {"type": "boolean"}, "output_only": {"type": "boolean"}, "code_only": {"type": "boolean"}, "single_line_command": {"type": "boolean"}, "self_modification": {"type": "boolean"}, "evasion": {"type": "boolean"}, "jailbreak": {"type": "boolean"}, "safety_framing": {"type": "boolean"}}, "additionalProperties": false},
+        "constraints": {"type": "array", "items": {"type": "string"}}, "target_model": {"type": ["string", "null"]},
+        "effectiveness": {"enum": ["succeeded", "failed", "partial", "not_tested", "unknown"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}
+      }, "additionalProperties": false
+    },
+    "codeStyle": {
+      "type": "object", "required": ["observed_feature", "feature_location", "report_assessment", "generation_assessment", "alternative_explanation", "evidence_ids"],
+      "properties": {"observed_feature": {"type": "string"}, "feature_location": {"type": ["string", "null"]}, "report_assessment": {"type": ["string", "null"]}, "generation_assessment": {"enum": ["likely", "possible", "unknown", "not_claimed"]}, "alternative_explanation": {"type": ["string", "null"]}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}}, "additionalProperties": false
+    },
+    "behavior": {"type": "object", "required": ["stage", "behavior", "evidence_ids"], "properties": {"stage": {"type": ["string", "null"]}, "behavior": {"type": "string"}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}}, "additionalProperties": false},
+    "outcome": {"type": "object", "required": ["type", "status", "description", "evidence_ids"], "properties": {"type": {"type": "string"}, "status": {"enum": ["confirmed", "reported", "possible", "unknown"]}, "description": {"type": "string"}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}}, "additionalProperties": false},
+    "limitation": {"type": "object", "required": ["type", "description", "evidence_ids"], "properties": {"type": {"type": "string"}, "description": {"type": "string"}, "evidence_ids": {"$ref": "#/$defs/evidenceRefs"}}, "additionalProperties": false},
+    "evidence": {
+      "type": "object", "required": ["evidence_id", "block_id", "page", "section", "excerpt", "excerpt_sha256"],
+      "properties": {"evidence_id": {"type": "string"}, "block_id": {"type": "string"}, "page": {"type": ["integer", "null"]}, "section": {"type": ["string", "null"]}, "excerpt": {"type": "string", "minLength": 1}, "excerpt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

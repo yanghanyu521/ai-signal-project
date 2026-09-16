@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Signal Static Analysis Result",
+  "type": "object",
+  "required": ["schema_version", "sample", "features", "classification", "errors"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "sample": {"type": "object", "required": ["sha256", "size", "file_type", "recoverability"]},
+    "features": {"type": "object", "required": ["toolchain", "prompt", "code_style", "recovery"]},
+    "classification": {"type": "object", "required": ["llm_involvement", "model_attribution"]},
+    "errors": {"type": "array"}
+  }
+}

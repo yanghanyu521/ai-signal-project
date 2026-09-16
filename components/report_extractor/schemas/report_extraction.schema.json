@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "报告信息抽取 P0 结果",
+  "type": "object",
+  "required": ["schema_version", "document", "entities", "claims", "sample_links", "cross_validation", "extraction", "errors"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "document": {
+      "type": "object",
+      "required": ["document_id", "title", "retrieved_at", "content_type", "content_sha256", "source_tier", "acquisition_status"]
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["entity_id", "entity_type", "name", "normalized_name", "aliases", "attributes"],
+        "properties": {
+          "entity_type": {"enum": ["campaign", "threat_actor", "victim", "region", "malware_family", "sample", "artifact", "ai_model", "ai_provider", "agent_framework", "tool", "technique", "vulnerability", "indicator"]}
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "subject_id", "predicate", "object", "claim_type", "assertion_status", "author_confidence", "extractor_confidence", "evidence"],
+        "properties": {
+          "predicate": {"enum": ["attributed_to", "associated_with_region", "targets", "uses_model", "uses_provider", "uses_agent", "uses_tool", "uses_prompt", "has_code_style_feature", "performs_technique", "has_operational_status", "has_ai_role", "has_autonomy_level", "has_human_role", "has_ai_work_share", "has_indicator", "has_artifact", "affects_platform", "observed_during", "limits_or_contradicts"]},
+          "claim_type": {"enum": ["direct_observation", "author_assessment", "author_inference", "methodology", "limitation", "negative_evidence"]},
+          "assertion_status": {"enum": ["asserted", "likely", "possible", "speculative", "denied", "unknown"]},
+          "author_confidence": {"enum": ["explicit_high", "explicit_medium", "explicit_low", "implicit", "not_stated"]},
+          "extractor_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["document_id", "block_id", "locator", "excerpt", "excerpt_sha256"]
+            }
+          }
+        }
+      }
+    },
+    "sample_links": {"type": "array"},
+    "cross_validation": {"type": "array"},
+    "extraction": {
+      "type": "object",
+      "required": ["pipeline_version", "extractors", "validation_status", "review_status"],
+      "properties": {
+        "validation_status": {"enum": ["passed", "warnings", "failed"]},
+        "review_status": {"enum": ["not_reviewed", "needs_review", "reviewed"]}
+      }
+    },
+    "errors": {"type": "array"}
+  }
+}
