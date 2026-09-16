@@ -1,0 +1,81 @@
+# {{ title }}
+
+生成时间：{{ generated_at }}<br>
+统计范围：{{ scope }}<br>
+数据截止：{{ as_of }}
+{% if range.date_from or range.date_to %}筛选区间：{{ range.date_from or "不限" }} 至 {{ range.date_to or "不限" }}
+{% else %}筛选区间：全部已收录数据
+{% endif %}
+
+## 一、执行摘要
+
+本地知识库当前业务口径共记录 **{{ totals.global_ai_security_events }}** 个全球 AI 安全事件，其中 **{{ totals.analyzable_events }}** 个事件具有样本、可以开展静态分析，另有 **{{ totals.events_without_samples }}** 个事件暂无样本。可分析事件对应 **{{ totals.sample_families }}** 个样本家族，共包含 **{{ totals.samples }}** 个已分析样本。
+
+在本报告筛选范围内，知识库保存 **{{ totals.report_records }}** 条报告记录，按规范化标题逻辑去重后为 **{{ totals.logical_reports }}** 份报告；已建立 **{{ totals.family_report_mappings }}** 组家族—报告映射、**{{ totals.analysis_cases }}** 个分析案例。交叉验证表保留 **{{ totals.cross_validation_records }}** 条执行记录。
+
+知识库另外保存 **{{ totals.curated_research_events }}** 条来自早期研究 CSV 的历史研究事件，以及 **{{ totals.report_event_records }}** 条由报告定向抽取得到的事件证据记录。两类记录来源和用途不同，不与样本家族数相加。
+
+本月知识库新增历史研究事件 **{{ monthly.current_count }}** 条，上月新增 **{{ monthly.previous_count }}** 条，{% if monthly.growth_rate is not none %}环比 {{ "%.1f"|format(monthly.growth_rate) }}%{% else %}上月基数为 0，本月绝对新增 {{ monthly.growth_absolute }} 条，不计算环比百分比{% endif %}。
+
+> 口径说明：25 个全球事件与 9 个可分析事件采用当前知识范围业务口径；历史研究事件来自 `ai_signal_demo/week1_research/ai_attack_events.csv`，仅用于研究背景，不能与报告事件证据行相加。
+
+## 二、样本分析覆盖
+
+| 样本家族 | 样本数 |
+|---|---:|
+{% for item in sample_family_distribution %}| {{ item.family }} | {{ item.count }} |
+{% else %}| 暂无家族标注 | 0 |
+{% endfor %}
+
+样本静态分析结论：
+
+| 结论 | 数量 |
+|---|---:|
+{% for item in sample_classification %}| {{ item.label }} | {{ item.count }} |
+{% endfor %}
+
+已确认具体模型的样本分布：
+
+| 模型 | 数量 |
+|---|---:|
+{% for item in model_distribution %}| {{ item.model }} | {{ item.count }} |
+{% else %}| 暂无可统计的具体模型 | 0 |
+{% endfor %}
+
+## 三、历史研究事件发生月趋势
+
+| 月份 | 研究事件 |
+|---|---:|
+{% for item in event_monthly %}| {{ item.month }} | {{ item.count }} |
+{% else %}| 暂无日期完整的事件 | 0 |
+{% endfor %}
+
+## 四、历史研究事件收录月趋势
+
+| 月份 | 新收录研究事件 |
+|---|---:|
+{% for item in knowledge_monthly %}| {{ item.month }} | {{ item.count }} |
+{% else %}| 暂无收录记录 | 0 |
+{% endfor %}
+
+## 五、交叉验证
+
+| 关系 | 数量 |
+|---|---:|
+{% for item in cross_validation_relations %}| {{ item.relation }} | {{ item.count }} |
+{% endfor %}
+
+`supports` 表示双方可比字段一致；`contradicts` 表示在足够强的关联下存在冲突；`complements` 表示报告补充样本无法静态获得的上下文；`inconclusive` 表示证据不足。
+
+## 六、当前限制与下一步
+
+- 统计只覆盖已导入和已分析数据，知识库覆盖度会直接影响趋势判断。
+- 样本侧是静态分析；未命中不等于不存在 AI 参与。
+- 报告侧事实来自报告原文，来源结论不自动升级为样本静态证据。
+- 家族名关联只作为人工复核候选；精确 SHA-256 才允许样本级事实传播。
+- 建议下一阶段补充后台任务队列、批量导入、身份权限、独立分析沙箱和 DOCX/PDF 导出。
+
+---
+
+模板版本：0.3<br>
+统计快照 ID：{{ snapshot_id }}

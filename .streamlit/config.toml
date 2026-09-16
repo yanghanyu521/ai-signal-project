@@ -1,0 +1,13 @@
+[theme]
+primaryColor = "#2B6CB0"
+backgroundColor = "#F7FAFC"
+secondaryBackgroundColor = "#EDF2F7"
+textColor = "#1A202C"
+baseFontSize = 17
+headingFontSizes = ["36px", "29px", "24px", "20px", "18px", "16px"]
+headingFontWeights = [700, 650, 600, 600, 600, 600]
+baseRadius = "medium"
+showWidgetBorder = true
+
+[server]
+maxUploadSize = 100

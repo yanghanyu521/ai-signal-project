@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.py[cod]
+*.egg-info/
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+data/
+.codex_tmp_*/
+*.log
+Thumbs.db
+.DS_Store
+
+# 本地开发过程记录，正式说明统一放在 docs/。
+task_plan.md
+findings.md
+progress.md
+docs/AI信号提取统一平台阶段性项目总结.docx

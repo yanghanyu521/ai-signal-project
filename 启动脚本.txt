@@ -1,0 +1,2 @@
+.\scripts\start_api.ps1
+.\scripts\start_ui.ps1
