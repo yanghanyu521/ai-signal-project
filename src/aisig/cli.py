@@ -15,7 +15,7 @@ from .pyinstaller_recovery import is_pyinstaller, merge_recovered_features, reco
 from .prompt import extract_prompt_features
 from .report import write_artifacts
 from .string_extract import extract_strings, source_text
-from .toolchain import extract_toolchain
+from .toolchain import extract_python_call_evidence, extract_toolchain
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 COMPONENT_ROOT = PROJECT_ROOT / "components" / "ai_signal_demo"
@@ -33,9 +33,19 @@ def analyze(sample: Path, out: Path, limits: Path, rules: Path) -> None:
     try:
         metadata, data = collect_metadata(sample, config["max_file_bytes"])
         strings = extract_strings(data, config["max_strings"], config["max_string_chars"])
-        toolchain = extract_toolchain(strings, rule_set, metadata, data)
-        prompt = extract_prompt_features(strings, rule_set, config["max_prompt_candidates"], data)
         text, encoding = source_text(data, metadata["language"])
+        toolchain = extract_toolchain(strings, rule_set, metadata, data)
+        if text is not None and metadata.get("language") == "python":
+            existing = toolchain.setdefault("evidence", [])
+            seen = {(item.get("type"), item.get("value"), item.get("offset"),
+                     (item.get("source_location") or {}).get("line")) for item in existing}
+            for item in extract_python_call_evidence(text):
+                key = (item.get("type"), item.get("value"), item.get("offset"),
+                       (item.get("source_location") or {}).get("line"))
+                if key not in seen:
+                    existing.append(item)
+                    seen.add(key)
+        prompt = extract_prompt_features(strings, rule_set, config["max_prompt_candidates"], data)
         if encoding:
             metadata["source_encoding"] = encoding
         code_style = analyze_code_style(text, metadata["language"], metadata["recoverability"])
@@ -52,10 +62,10 @@ def analyze(sample: Path, out: Path, limits: Path, rules: Path) -> None:
     except Exception as exc:  # ensures malformed inputs yield machine-readable output
         errors.append({"stage": "analysis", "message": f"{type(exc).__name__}: {exc}"})
         metadata = {"sha256": "0" * 64, "size": sample.stat().st_size, "file_type": "analysis_error", "language": None, "recoverability": "unknown"}
-        strings, toolchain, prompt, code_style = [], {"evidence": []}, {"embedded_prompts": [], "structural_features": {}, "special_tokens": []}, {"status": "not_trained", "metrics": {}}
+        strings, toolchain, prompt, code_style = [], {"evidence": []}, {"embedded_prompts": [], "structural_features": {}, "special_tokens": []}, {"status": "unavailable", "representation": "unknown", "metrics": {}, "ai_generated_detection": {"status": "not_supported", "heuristic_score": None}}
         recovery = {"pyinstaller": {"status": "not_run"}, "apk": {"status": "not_run"}}
         classification = {"llm_involvement": {"label": "unknown", "confidence": 0.0}, "model_attribution": {"vendor": None, "family": "unknown", "model": None, "decision_method": "unknown", "confidence": 0.0}, "evidence_summary": []}
-    result = {"schema_version": "0.1", "sample": metadata, "features": {"toolchain": toolchain, "prompt": prompt, "code_style": code_style, "recovery": recovery}, "classification": classification, "errors": errors}
+    result = {"schema_version": "0.2", "sample": metadata, "features": {"toolchain": toolchain, "prompt": prompt, "code_style": code_style, "recovery": recovery}, "classification": classification, "errors": errors}
     write_artifacts(out, result, strings, COMPONENT_ROOT / "schemas" / "result.schema.json")
     print(json.dumps({"sha256": metadata["sha256"], "out": str(out), "classification": classification}, ensure_ascii=False))
 

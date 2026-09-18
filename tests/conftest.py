@@ -21,7 +21,8 @@ def platform(tmp_path):
                         legacy_sample_project=project / "components" / "ai_signal_demo",
                         legacy_report_project=project / "components" / "report_extractor",
                         seed_data_dir=project / "components" / "seed_data",
-                        max_upload_bytes=10 * 1024 * 1024)
+                        max_upload_bytes=10 * 1024 * 1024,
+                        sample_llm_enabled=False, static_tools_docker_enabled=False)
     settings.ensure_directories()
     database = Database(settings.database_path)
     database.initialize()

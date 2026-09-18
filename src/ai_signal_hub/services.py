@@ -51,6 +51,23 @@ class HubService:
         saved["sample_associations"] = self.similarity.associations(sha256)
         return saved
 
+    def reanalyze_stored_sample(self, sha256: str) -> dict[str, Any]:
+        existing = self.repository.get_sample(sha256)
+        if not existing:
+            raise KeyError("样本不存在")
+        stored_path = self.settings.quarantine_dir / f"{sha256.lower()}.sample"
+        if not stored_path.is_file():
+            raise FileNotFoundError("知识库只有历史结果，没有可重新分析的原始样本")
+        artifact_dir = self.settings.sample_artifact_dir / sha256.lower()
+        result = self.legacy.analyze_sample(stored_path, artifact_dir)
+        saved = self.repository.upsert_sample(
+            result, original_name=existing.get("original_name"),
+            source_case=existing.get("source_case"), artifact_path=str(artifact_dir.resolve()),
+        )
+        self.similarity.rebuild()
+        saved["analysis_runs"] = self.repository.sample_analysis_runs(sha256, 5)
+        return saved
+
     def analyze_report(
         self,
         source: BinaryIO,

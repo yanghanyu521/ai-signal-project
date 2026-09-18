@@ -8,6 +8,10 @@
 
 当前版本提供 FastAPI、SQLite 本地知识库、联合分析案例、历史结果导入、样本自动聚类关联、统计与 Markdown 报告生成，以及 Streamlit 测试界面。
 
+v0.6.0：样本材料默认使用与报告抽取相同的 DeepSeek V4 服务（密钥依次读取 `SAMPLE_LLM_API_KEY`、`DEEPSEEK_API_KEY`、`cc-api`）；取消单次分析的总 token 预算，按模型上下文上限批量覆盖已恢复材料。APK/DEX 与 PE/ELF 分别通过网络隔离的 JADX、Ghidra Docker 容器恢复 Java 方法、函数伪代码、字符串及导入表。配置和真实无害夹具验证见 [样本 DeepSeek 与 Docker 静态工具接入说明](docs/18_样本DeepSeek与Docker静态工具接入_20260917.md)。
+
+v0.5.0：按静态分析审查意见修复型号截断、SDK/模型厂商混淆、最终分类不同步、归档内层漏扫、Prompt比较资格及证据偏移等问题；新增统一静态材料索引、受限上下文查询、独立样本侧LLM链路、分析运行历史和显式重新分析API。整改范围和未验收项见 [静态分析整改落实说明](docs/17_静态分析审查意见整改落实_20260917.md)。
+
 v0.4.0：样本静态分析与报告解析组件已完成单仓库整合，源码、规则、Schema、测试夹具及结构化知识种子均随项目提供，不再需要另外部署旧项目。
 
 v0.3.0：新上传报告默认直接由大模型提取，已移除报告规则匹配和关键词预筛选。首次提交解析全文，仅模型容量/输出超限时全覆盖分块；保留原文证据校验，不回退规则。样本静态分析和历史结果不变。
@@ -18,7 +22,7 @@ v0.3.0：新上传报告默认直接由大模型提取，已移除报告规则�
 
 ## 项目组成与运行依赖
 
-项目现已自包含，样本静态分析器和报告解析组件的源码均已整合进同一仓库，不再依赖本机同级目录。运行环境只需 Python 3.11 或更高版本，以及 `pyproject.toml` 中声明的 Python 依赖。
+项目现已自包含，样本静态分析器和报告解析组件的源码均已整合进同一仓库，不再依赖本机同级目录。基础运行需要 Python 3.11 或更高版本及 `pyproject.toml` 中声明的 Python 依赖；APK/DEX、PE/ELF 深度静态恢复另需 Docker Desktop 或兼容 Docker Engine。
 
 ```text
 ai-signal-project/
@@ -30,6 +34,7 @@ ai-signal-project/
 │   ├── ai_signal_demo/     # 样本分析规则、限制配置与 Schema
 │   ├── report_extractor/   # 报告结构 Schema
 │   └── seed_data/          # 可公开的结构化知识种子，不含原始样本
+├── docker/                 # 固定版本的 JADX/Ghidra 隔离镜像定义与导出脚本
 ├── ui/                     # Streamlit 测试界面
 ├── tests/                  # 平台与两个内置组件的回归测试
 └── docs/                   # 需求、设计、验收与阶段报告
@@ -44,6 +49,9 @@ git clone git@github.com:yanghanyu521/ai-signal-project.git
 Set-Location '.\ai-signal-project'
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e '.[dev]'
+
+# 首次使用 APK/DEX 或 PE/ELF 深度静态恢复时构建镜像
+.\scripts\build_static_tool_images.ps1
 
 .\.venv\Scripts\python.exe -m ai_signal_hub.main
 ```
@@ -87,6 +95,8 @@ FruitShell静态规则已补齐：PowerShell多线索识别、代码词法统计
 - `POST /api/v1/analysis-cases`：样本/报告联合上传，按目标家族定向抽取，或选择已有案例补齐对应关系。
 - `POST /api/v1/analysis-cases/{case_id}/cross-validate`：只在指定案例内执行样本—报告交叉验证。
 - `POST /api/v1/samples/analyze`：上传一个样本，受控落盘并进行纯静态分析。
+- `POST /api/v1/samples/{sha256}/reanalyze`：使用本地隔离保存的原始样本显式重新分析；没有原始样本时返回409，不伪装为已重提取。
+- `GET /api/v1/samples/{sha256}/analysis-runs`：查看追加保存的历次结构化分析快照。
 - `GET /api/v1/samples/{sha256}/associations`：查看工具链、Prompt、代码统计候选关系和聚类；`include_unmatched=true`同时查看零分/不可比较原因，分数可为null。
 - `POST /api/v1/samples/recluster`：重建全部样本聚类。
 - `POST /api/v1/reports/analyze`：上传报告并按 `target_name` 指定样本/家族定向抽取事件。
@@ -99,9 +109,12 @@ FruitShell静态规则已补齐：PowerShell多线索识别、代码词法统计
 
 ## 安全提示
 
-- 平台绝不执行、导入、调试、仿真或上传恶意样本。
+- 平台绝不执行、导入、调试或仿真恶意样本；JADX/Ghidra 仅做静态恢复。启用样本侧 DeepSeek 后会向模型服务发送源码、反编译代码和提取出的静态材料，但不会把完整可执行文件编码后作为模型输入。
 - `data/quarantine` 中的文件使用哈希名和 `.sample` 后缀保存；不要双击、预览或交给解释器。
 - 原始样本和运行数据已在 `.gitignore` 中排除。
 - 当前是本地单用户测试版，API 默认只监听 `127.0.0.1`。对外部署前必须补充认证、权限、反向代理、TLS、审计日志和独立分析沙箱。
+- 样本侧大模型默认启用并复用报告侧 DeepSeek V4 配置：密钥优先级为 `SAMPLE_LLM_API_KEY` → `DEEPSEEK_API_KEY` → `cc-api`，样本专用变量只作为覆盖项。样本源码、反编译代码和静态字符串会发送至配置的模型服务；生产环境应确认数据外发策略，也可用 `SAMPLE_LLM_ENABLED=false` 关闭。
+- 不设置单次分析总 token 预算；`SAMPLE_LLM_MAX_INPUT_TOKENS` 只控制每次请求的上下文大小，材料会自动分批。`SAMPLE_LLM_MAX_REQUESTS`（默认128）和超时仍作为故障/失控保护，触发后明确返回 `partial` 与未处理单元清单。
+- JADX/Ghidra 容器运行时固定关闭网络、只读挂载样本、删除 Linux capabilities、限制 CPU/内存/PID，并在超时后强制回收；这降低风险但不能替代专用隔离分析主机。
 
 详细需求、架构、v1/v2 意见处理、v0.3 报告大模型改造和验收范围见 `docs/`；报告抽取当前行为以 `07_报告纯大模型抽取说明.md` 为准。

@@ -30,13 +30,18 @@ def _sample_toolchain(sample: dict) -> dict[str, list[dict]]:
     for index, evidence in enumerate(sample.get("features", {}).get("toolchain", {}).get("evidence", [])):
         normalized = evidence.get("normalized") or {}
         path = f"features.toolchain.evidence[{index}]"
-        model = normalized.get("model") or (evidence.get("value") if evidence.get("type") == "model_identifier" else None)
-        provider = normalized.get("vendor") or normalized.get("provider")
+        model = normalized.get("model") or normalized.get("model_identifier_raw") or (
+            evidence.get("value") if evidence.get("type") in {"model_identifier", "model_argument"} else None
+        )
+        # SDK/service vendors are intentionally not model providers.
+        provider = normalized.get("model_vendor") or (
+            normalized.get("vendor") if evidence.get("type") == "model_identifier" else None
+        )
         if model:
             result["models"].append({"value": str(model), "path": path})
         if provider:
             result["providers"].append({"value": str(provider), "path": path})
-        if evidence.get("type") in {"api_endpoint", "sdk", "api_or_sdk", "agent_marker"}:
+        if evidence.get("type") in {"api_endpoint", "endpoint", "service_endpoint", "sdk", "sdk_marker", "sdk_call", "api_or_sdk", "agent_marker"}:
             result["services"].append({"value": str(evidence.get("value") or ""), "path": path})
     attribution = sample.get("classification", {}).get("model_attribution", {})
     if attribution.get("model"):
@@ -119,10 +124,13 @@ def compare_event_to_sample(report: dict, sample: dict, *, event_id: str | None 
         if report_tool.get("purpose"):
             comparisons.append(_comparison(sample_sha, event_id_value, "toolchain", "complements", "classification.llm_involvement", sample.get("classification", {}).get("llm_involvement"), f"events.{event_id_value}.ai_signals.toolchain[{index}].purpose", report_tool["purpose"], report_tool["evidence_ids"], link, "报告补充AI工具链在事件中的实际用途"))
     sample_prompt = sample.get("features", {}).get("prompt", {})
-    embedded = sample_prompt.get("embedded_prompts") or []
+    embedded = [item for item in sample_prompt.get("embedded_prompts") or []
+                if item.get("comparison_eligible") is not False]
     sample_structural = sample_prompt.get("structural_features") or {}
     for index, report_prompt in enumerate(event["ai_signals"]["prompts"]):
-        exact = next((item for item in embedded if report_prompt.get("text_hash") and item.get("text_hash") == report_prompt["text_hash"]), None)
+        exact = next((item for item in embedded
+                      if (item.get("completeness") or "legacy_complete_text") not in {"window_excerpt", "excerpt_only", "description"}
+                      and report_prompt.get("text_hash") and item.get("text_hash") == report_prompt["text_hash"]), None)
         if exact:
             relation, path, value, notes = "supports", "features.prompt.embedded_prompts", report_prompt["text_hash"], "报告和样本Prompt精确哈希一致"
         elif report_prompt["availability"] == "described_only":
@@ -134,7 +142,7 @@ def compare_event_to_sample(report: dict, sample: dict, *, event_id: str | None 
             path, value, notes = "features.prompt.structural_features", sample_structural, "Prompt结构标记一致，仍需人工核对文本范围" if relation == "supports" else "Prompt片段或结构不足以确认一致"
         comparisons.append(_comparison(sample_sha, event_id_value, "prompt", relation, path, value, f"events.{event_id_value}.ai_signals.prompts[{index}]", {"availability": report_prompt["availability"], "purpose": report_prompt["purpose"], "text_hash": report_prompt["text_hash"]}, report_prompt["evidence_ids"], link, notes))
     for index, style in enumerate(event["ai_signals"]["code_style"]):
-        comparisons.append(_comparison(sample_sha, event_id_value, "code_style", "complements", "features.code_style", sample.get("features", {}).get("code_style"), f"events.{event_id_value}.ai_signals.code_style[{index}]", style["observed_feature"], style["evidence_ids"], link, "报告描述代码生成机制或作者观察；不覆盖样本侧not_trained状态"))
+        comparisons.append(_comparison(sample_sha, event_id_value, "code_style", "complements", "features.code_style", sample.get("features", {}).get("code_style"), f"events.{event_id_value}.ai_signals.code_style[{index}]", style["observed_feature"], style["evidence_ids"], link, "报告描述代码生成机制或作者观察；不把样本侧描述性代码统计解释为AI生成概率"))
     context_facts = [
         ("event_context", "time", event["time"], event["time"]["evidence_ids"]),
         ("event_context", "status", event["status"], event["status"]["evidence_ids"]),

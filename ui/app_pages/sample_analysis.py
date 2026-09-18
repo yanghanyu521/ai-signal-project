@@ -32,6 +32,17 @@ if submitted:
                 st.metric("SHA-256", result["sha256"][:16] + "…", border=True)
                 st.metric("LLM 参与", classification["llm_involvement"]["label"], border=True)
                 st.metric("具体模型", classification["model_attribution"].get("model") or "unknown", border=True)
+            static_analysis = result["result_json"].get("features", {}).get("static_analysis", {})
+            run = static_analysis.get("run") or {}
+            coverage = run.get("coverage") or {}
+            if run:
+                st.subheader("结构化静态分析覆盖")
+                with st.container(horizontal=True):
+                    st.metric("材料索引状态", run.get("index_status") or "未知", border=True)
+                    st.metric("样本侧语义分析", run.get("status") or "未知", border=True)
+                    st.metric("已初筛材料块", f"{coverage.get('screened_units', 0)}/{coverage.get('indexed_units', 0)}", border=True)
+                if run.get("status") in {"partial", "failed", "unavailable", "unsupported"}:
+                    st.info("；".join(run.get("limitations") or ["详细限制见结构化结果"][:3]))
             with st.expander("完整安全结构化结果"):
                 st.json(result["result_json"])
         except ApiError as exc:

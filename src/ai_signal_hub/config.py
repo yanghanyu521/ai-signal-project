@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -12,6 +12,11 @@ WORKSPACE_ROOT = PROJECT_ROOT.parent
 def _path_env(name: str, default: Path) -> Path:
     value = os.getenv(name)
     return Path(value).expanduser().resolve() if value else default.resolve()
+
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    return default if value is None else value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 @dataclass(frozen=True)
@@ -31,6 +36,26 @@ class Settings:
     max_upload_bytes: int = int(os.getenv("AI_SIGNAL_HUB_MAX_UPLOAD_BYTES", "104857600"))
     host: str = os.getenv("AI_SIGNAL_HUB_HOST", "127.0.0.1")
     port: int = int(os.getenv("AI_SIGNAL_HUB_PORT", "8000"))
+    sample_llm_enabled: bool = field(default_factory=lambda: _bool_env("SAMPLE_LLM_ENABLED", True))
+    sample_llm_base_url: str = field(default_factory=lambda: os.getenv(
+        "SAMPLE_LLM_BASE_URL", os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    ))
+    sample_llm_model: str = field(default_factory=lambda: os.getenv(
+        "SAMPLE_LLM_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    ))
+    sample_llm_api_key: str | None = field(default_factory=lambda: (
+        os.getenv("SAMPLE_LLM_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or os.getenv("cc-api")
+    ))
+    sample_llm_allow_remote: bool = field(default_factory=lambda: _bool_env("SAMPLE_LLM_ALLOW_REMOTE", True))
+    sample_llm_mode: str = field(default_factory=lambda: os.getenv("SAMPLE_LLM_MODE", "coverage"))
+    sample_llm_max_requests: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_REQUESTS", "128")))
+    sample_llm_timeout_seconds: float = field(default_factory=lambda: float(os.getenv("SAMPLE_LLM_TIMEOUT_SECONDS", "240")))
+    sample_llm_max_input_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_INPUT_TOKENS", "64000")))
+    sample_llm_max_output_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_OUTPUT_TOKENS", "16384")))
+    static_tools_docker_enabled: bool = field(default_factory=lambda: _bool_env("STATIC_TOOLS_DOCKER_ENABLED", True))
+    jadx_docker_image: str = field(default_factory=lambda: os.getenv("JADX_DOCKER_IMAGE", "ai-signal/jadx:1.5.6"))
+    ghidra_docker_image: str = field(default_factory=lambda: os.getenv("GHIDRA_DOCKER_IMAGE", "ai-signal/ghidra:12.1.3"))
+    static_tool_timeout_seconds: int = field(default_factory=lambda: int(os.getenv("STATIC_TOOL_TIMEOUT_SECONDS", "600")))
 
     @property
     def database_path(self) -> Path:

@@ -24,7 +24,9 @@ models:
     model: gpt-oss-20b
     confidence: 0.99
   - id: openai_gpt_family
-    regex: '(?i)\bgpt-(?:3\.5-turbo|4(?:o)?|4-turbo)\b'
+    # Preserve the complete identifier. Family normalization is separate from
+    # the literal value, so longer variants must never be truncated to a prefix.
+    regex: '(?i)\bgpt-(?:3\.5|4)[A-Za-z0-9._:-]*\b'
     vendor: OpenAI
     family: GPT
     model: null
@@ -46,18 +48,22 @@ endpoints:
     family: unknown
     confidence: 0.90
 sdk_patterns:
-  - regex: '(?i)\b(?:import|from)\s+openai\b|OpenAI\('
-    provider: OpenAI
-    family: GPT
-  - regex: '(?i)google\.generativeai|GenerativeModel\('
-    provider: Google
-    family: Gemini
-  - regex: '(?i)\b(?:import|from)\s+anthropic\b|Anthropic\('
-    provider: Anthropic
-    family: Claude
-  - regex: '(?i)\b(?:ollama|chat\.completions|function_call|tool_calls)\b'
-    provider: null
-    family: unknown
+  - id: openai_python_sdk
+    regex: '(?i)\b(?:import|from)\s+openai\b|OpenAI\('
+    sdk_name: openai
+    sdk_vendor: OpenAI
+  - id: google_generative_ai_sdk
+    regex: '(?i)google\.generativeai|GenerativeModel\('
+    sdk_name: google-generativeai
+    sdk_vendor: Google
+  - id: anthropic_python_sdk
+    regex: '(?i)\b(?:import|from)\s+anthropic\b|Anthropic\('
+    sdk_name: anthropic
+    sdk_vendor: Anthropic
+  - id: generic_chat_interface
+    regex: '(?i)\b(?:ollama|chat\.completions|function_call|tool_calls)\b'
+    sdk_name: generic-chat-interface
+    sdk_vendor: null
 ai_cli_patterns:
   # 仅在 CLI 名称与其特有危险执行参数同时出现时识别，避免把普通
   # "claude" 字符串误判为 Anthropic 工具链。

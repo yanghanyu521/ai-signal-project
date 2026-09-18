@@ -238,8 +238,10 @@ def apply_sample_rules(result: dict[str, Any], data: bytes) -> dict[str, Any]:
     style = features["code_style"]
     style.update(language="powershell", recoverability="original_source",
                  metrics=_metrics(text, code, comment_spans), metrics_method=METRICS_METHOD,
-                 syntax_validation="not_performed", status="not_trained")
-    style.setdefault("ai_generated_detection", {"status": "not_trained", "heuristic_score": None})
+                 representation="original_source", syntax_validation="not_performed",
+                 status="descriptive_metrics",
+                 interpretation="仅为描述性词法统计，不是AI生成代码概率。")
+    style["ai_generated_detection"] = {"status": "not_supported", "heuristic_score": None}
     prompt = features["prompt"]
     candidates = _prompt_candidates(text, comments, codec, bom)
     for candidate in candidates:

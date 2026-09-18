@@ -57,6 +57,19 @@ class Database:
         CREATE INDEX IF NOT EXISTS idx_samples_model ON samples(model_name, model_family);
         CREATE INDEX IF NOT EXISTS idx_samples_case ON samples(source_case);
 
+        CREATE TABLE IF NOT EXISTS sample_analysis_runs (
+            id TEXT PRIMARY KEY,
+            sample_sha256 TEXT NOT NULL REFERENCES samples(sha256) ON DELETE CASCADE,
+            result_schema_version TEXT,
+            analyzer_version TEXT NOT NULL,
+            trigger_kind TEXT NOT NULL,
+            artifact_path TEXT,
+            result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sample_runs_sha
+            ON sample_analysis_runs(sample_sha256, created_at DESC);
+
         CREATE TABLE IF NOT EXISTS reports (
             id TEXT PRIMARY KEY,
             report_id TEXT NOT NULL UNIQUE,
@@ -238,6 +251,19 @@ class Database:
             if "updated_at" not in validation_columns:
                 connection.execute("ALTER TABLE cross_validations ADD COLUMN updated_at TEXT")
                 connection.execute("UPDATE cross_validations SET updated_at=created_at WHERE updated_at IS NULL")
+            # Preserve the current snapshot of databases created before the
+            # append-only run table existed. Re-running initialization is safe.
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO sample_analysis_runs(
+                    id,sample_sha256,result_schema_version,analyzer_version,
+                    trigger_kind,artifact_path,result_json,created_at)
+                SELECT 'migration:' || sha256,sha256,
+                       json_extract(result_json,'$.schema_version'),
+                       'pre-run-history','migration_snapshot',artifact_path,result_json,updated_at
+                FROM samples
+                """
+            )
 
     @staticmethod
     def row(row: sqlite3.Row | None, json_fields: tuple[str, ...] = ()) -> dict[str, Any] | None:

@@ -20,7 +20,8 @@ SIMHASH_ALGORITHM = "simhash64_normalized_tokens_v1"
 SIMHASH_MAX_DISTANCE = 8
 STRUCTURE_ONLY_CAP = 0.2
 TOOL_WEIGHTS = {"vendor": 1.0, "family": 1.5, "model": 2.0,
-                "sdk": 1.0, "endpoint": 1.5, "ai_cli": 1.0}
+                "sdk": 1.0, "sdk_vendor": 1.0, "endpoint": 1.5,
+                "service": 1.5, "ai_cli": 1.0}
 SCALARS = ("loc", "function_count", "mean_identifier_length", "blank_ratio",
            "comment_ratio", "exception_handler_ratio")
 
@@ -47,12 +48,23 @@ def _tool_features(result: dict) -> dict[str, float]:
 
     for evidence in result.get("features", {}).get("toolchain", {}).get("evidence", []) or []:
         normalized = evidence.get("normalized") or {}
-        for key in ("vendor", "provider", "family", "model"):
-            add("vendor" if key == "provider" else key, normalized.get(key))
+        # Model identity, SDK identity and service identity are independent
+        # dimensions. In particular, an OpenAI-compatible SDK is not proof
+        # that the selected model was made by OpenAI.
+        for key in ("model_vendor", "vendor"):
+            add("vendor", normalized.get(key))
+        for key in ("model_family", "family"):
+            add("family", normalized.get(key))
+        for key in ("model", "model_identifier_raw"):
+            add("model", normalized.get(key))
+        add("sdk", normalized.get("sdk_name"))
+        add("sdk_vendor", normalized.get("sdk_vendor"))
+        add("service", normalized.get("service_provider"))
+        add("endpoint", normalized.get("service_endpoint"))
         kind, value = evidence.get("type"), evidence.get("value")
-        if kind in {"sdk_marker", "ai_cli"}:
-            add("sdk" if kind == "sdk_marker" else kind, value)
-        elif kind == "endpoint" and _meaningful(value):
+        if kind in {"sdk_marker", "sdk_call", "ai_cli"}:
+            add("sdk" if kind in {"sdk_marker", "sdk_call"} else kind, value)
+        elif kind in {"endpoint", "service_endpoint"} and _meaningful(value):
             # Never propagate credentials/query arguments into comparison labels.
             parsed = urlsplit(value if "://" in value else "https://" + value)
             if parsed.hostname:
@@ -86,15 +98,20 @@ def _prompt_profile(result: dict) -> dict:
     prompt = result.get("features", {}).get("prompt", {})
     records = {}
     invalid = 0
+    excluded = 0
     for item in prompt.get("embedded_prompts", []) or []:
+        if item.get("comparison_eligible") is False:
+            excluded += 1
+            continue
         exact, fuzzy = _exact_hash(item.get("text_hash")), _fuzzy_hash(item.get("fuzzy_hash"))
         if item.get("fuzzy_hash") and fuzzy is None:
             invalid += 1
         if exact or fuzzy is not None:
             key = exact or f"simhash64:{fuzzy:016x}"
+            completeness = item.get("completeness") or "legacy_complete_text"
             # Repeated copies of a prompt must not inflate overlap.
             if key not in records or (records[key]["fuzzy"] is None and fuzzy is not None):
-                records[key] = {"exact": exact, "fuzzy": fuzzy}
+                records[key] = {"exact": exact, "fuzzy": fuzzy, "completeness": completeness}
     structure = {f"flag:{key}": 1.0 for key, value in (prompt.get("structural_features") or {}).items()
                  if value is True}
     for item in prompt.get("special_tokens", []) or []:
@@ -102,7 +119,7 @@ def _prompt_profile(result: dict) -> dict:
         if _meaningful(token):
             structure[f"token:{_token(token)}"] = 0.5
     return {"records": [records[key] for key in sorted(records)], "structure": structure,
-            "ignored_fuzzy_hashes": invalid}
+            "ignored_fuzzy_hashes": invalid, "excluded_ineligible": excluded}
 
 
 def _code_profile(result: dict) -> dict:
@@ -176,6 +193,17 @@ def compare_toolchain(left: dict, right: dict) -> dict:
 
 
 def _prompt_pair(left: dict, right: dict) -> tuple[float, str, int | None]:
+    def category(item: dict) -> str:
+        value = item.get("completeness") or "legacy_complete_text"
+        if value in {"complete_static_template", "full_text", "static_template", "legacy_complete_text"}:
+            return "complete"
+        if value in {"static_component", "decoded_static_component", "decoded_constant", "string_constant",
+                     "static_components_only"}:
+            return "component"
+        return "fragment"
+
+    if category(left) != category(right):
+        return 0.0, "different_completeness", None
     if left["exact"] and left["exact"] == right["exact"]:
         return 1.0, "exact_sha256", None
     if left["fuzzy"] is not None and right["fuzzy"] is not None:

@@ -184,7 +184,31 @@ class Repository:
                 "UPDATE event_sample_links SET sample_id=? WHERE sample_sha256=? AND sample_id IS NULL",
                 (sha256, sha256),
             )
+            connection.execute(
+                """
+                INSERT INTO sample_analysis_runs(
+                    id,sample_sha256,result_schema_version,analyzer_version,
+                    trigger_kind,artifact_path,result_json,created_at)
+                VALUES(?,?,?,?,?,?,?,?)
+                """,
+                ("run:" + uuid.uuid4().hex, sha256, result.get("schema_version"),
+                 "ai-signal-hub/0.6.0", "analysis_or_import", artifact_path,
+                 json_text(result), now),
+            )
         return self.get_sample(sha256)
+
+    def sample_analysis_runs(self, sha256: str, limit: int = 20) -> list[dict[str, Any]]:
+        with self.db.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id,sample_sha256,result_schema_version,analyzer_version,
+                       trigger_kind,artifact_path,result_json,created_at
+                FROM sample_analysis_runs WHERE sample_sha256=?
+                ORDER BY created_at DESC,id DESC LIMIT ?
+                """,
+                (sha256.lower(), limit),
+            ).fetchall()
+        return self.db.rows(rows, ("result_json",))
 
     def get_sample(self, sha256: str) -> dict[str, Any] | None:
         with self.db.connect() as connection:

@@ -114,6 +114,31 @@ def get_sample(sha256: str) -> dict:
     return result
 
 
+@app.get("/api/v1/samples/{sha256}/analysis-runs", tags=["samples"])
+def get_sample_analysis_runs(
+    sha256: str, limit: Annotated[int, Query(ge=1, le=100)] = 20
+) -> list[dict]:
+    if not re.fullmatch(r"[a-fA-F0-9]{64}", sha256):
+        raise HTTPException(status_code=400, detail="无效 SHA-256")
+    if not repository.get_sample(sha256):
+        raise HTTPException(status_code=404, detail="样本不存在")
+    return repository.sample_analysis_runs(sha256, limit)
+
+
+@app.post("/api/v1/samples/{sha256}/reanalyze", tags=["samples"])
+def reanalyze_sample(sha256: str) -> dict:
+    if not re.fullmatch(r"[a-fA-F0-9]{64}", sha256):
+        raise HTTPException(status_code=400, detail="无效 SHA-256")
+    try:
+        return service.reanalyze_stored_sample(sha256.lower())
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"样本重新分析失败: {exc}") from exc
+
+
 @app.get("/api/v1/samples/{sha256}/associations", tags=["samples"])
 def get_sample_associations(
     sha256: str, limit: Annotated[int, Query(ge=1, le=100)] = 10,

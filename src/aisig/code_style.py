@@ -7,7 +7,16 @@ from typing import Any
 
 
 def _base_result(language: str | None, recoverability: str) -> dict[str, Any]:
-    return {"status": "not_trained", "language": language, "recoverability": recoverability, "metrics": {}, "ai_generated_detection": {"status": "not_trained", "heuristic_score": None}}
+    return {
+        "status": "unavailable",
+        "language": language,
+        "recoverability": recoverability,
+        "representation": recoverability or "unknown",
+        "metrics_method": "descriptive_code_metrics_v2",
+        "metrics": {},
+        "ai_generated_detection": {"status": "not_supported", "heuristic_score": None},
+        "interpretation": "仅为描述性词法/结构统计，不是AI生成代码概率。",
+    }
 
 
 def _naming(values: list[str]) -> dict[str, float]:
@@ -57,4 +66,5 @@ def analyze_code_style(text: str | None, language: str | None, recoverability: s
             "naming_style": _naming(identifiers),
         })
     result["metrics"] = metrics
+    result["status"] = "partial_descriptive_metrics" if result.get("parse_error") else "descriptive_metrics"
     return result
