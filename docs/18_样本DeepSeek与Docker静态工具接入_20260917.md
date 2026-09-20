@@ -1,5 +1,7 @@
 # 样本 DeepSeek V4 与 Docker 静态工具接入说明
 
+> v0.7 安全修订：本文记录 v0.6 接入背景。当前默认值已经改为 `SAMPLE_LLM_ALLOW_REMOTE=false`、`SAMPLE_LLM_TRANSFER_POLICY=local_only`；如需调用 DeepSeek，必须显式选择 `remote_redacted` 或 `remote_full`。以 `docs/19_静态AI信号证据验证架构_v0.7.md` 为准。
+
 ## 1. 当前行为
 
 样本分析继续保留原有确定性规则结果，同时增加大模型语义分析。大模型直接读取统一静态材料，包括源码函数、配置与常量、归档成员、静态字符串、JADX Java 反编译结果及 Ghidra 函数伪代码；不要求先命中已知型号或关键词规则。
@@ -47,7 +49,8 @@ SAMPLE_LLM_ENABLED=true
 # SAMPLE_LLM_BASE_URL=https://api.deepseek.com
 # SAMPLE_LLM_MODEL=deepseek-v4-flash
 # SAMPLE_LLM_API_KEY=...  # 通常无需重复配置，默认读取 cc-api
-SAMPLE_LLM_ALLOW_REMOTE=true
+SAMPLE_LLM_ALLOW_REMOTE=false
+SAMPLE_LLM_TRANSFER_POLICY=local_only
 SAMPLE_LLM_MODE=coverage
 SAMPLE_LLM_MAX_REQUESTS=128
 SAMPLE_LLM_TIMEOUT_SECONDS=240
@@ -60,7 +63,7 @@ GHIDRA_DOCKER_IMAGE=ai-signal/ghidra:12.1.3
 STATIC_TOOL_TIMEOUT_SECONDS=600
 ```
 
-`SAMPLE_LLM_ENABLED=false` 可关闭样本材料外发，但不会关闭本地规则与 Docker 静态恢复。`STATIC_TOOLS_DOCKER_ENABLED=false` 可关闭 Docker 恢复，APK/PE 等输入会保留明确限制状态。
+默认配置不会把样本材料发送给远端模型。需要远端分析时，必须同时设置 `SAMPLE_LLM_ALLOW_REMOTE=true` 与 `SAMPLE_LLM_TRANSFER_POLICY=remote_redacted`（脱敏）或 `remote_full`（完整外发）。`SAMPLE_LLM_ENABLED=false` 可完全关闭样本侧模型分析，不影响本地规则与 Docker 静态恢复。`STATIC_TOOLS_DOCKER_ENABLED=false` 可关闭 Docker 恢复，APK/PE 等输入会保留明确限制状态。
 
 ## 4. 真实无害夹具验证
 

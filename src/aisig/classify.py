@@ -8,6 +8,20 @@ def _score(item: dict[str, Any]) -> float:
     return float(value) if isinstance(value, (int, float)) else 0.0
 
 
+def _is_attribution_eligible(item: dict[str, Any]) -> bool:
+    explicit = item.get("attribution_eligible")
+    if isinstance(explicit, bool):
+        return explicit and item.get("role", "application") == "application"
+    # Compatibility for v0.2 snapshots created before the explicit gate.
+    # Only deterministic relation evidence is promoted; location-only LLM or
+    # marker evidence remains ineligible.
+    return (
+        item.get("verification_status") == "relation_verified"
+        and item.get("role", "application") == "application"
+        and item.get("discovery_method") != "llm"
+    )
+
+
 def _model_candidate(item: dict[str, Any]) -> dict[str, Any]:
     normalized = item.get("normalized") or {}
     raw = item.get("raw_value") or item.get("value")
@@ -26,7 +40,9 @@ def _model_candidate(item: dict[str, Any]) -> dict[str, Any]:
         "raw_value": raw,
         "source_type": item.get("type"),
         "verification_status": item.get("verification_status", "unverified"),
+        "verification": item.get("verification") or {},
         "role": item.get("role", "unknown"),
+        "attribution_eligible": bool(item.get("attribution_eligible")),
     }
 
 
@@ -38,29 +54,47 @@ def classify(toolchain: dict[str, Any], prompt: dict[str, Any]) -> dict[str, Any
     claims that a call was observed at runtime.
     """
     evidence = list(toolchain.get("evidence") or [])
+    eligible = [
+        item for item in evidence
+        if _is_attribution_eligible(item)
+    ]
     model_evidence = [
-        item for item in evidence if item.get("type") in {"model_identifier", "model_argument"}
+        item for item in eligible if item.get("type") in {"model_identifier", "model_argument"}
     ]
     relation_evidence = [
-        item for item in evidence if item.get("verification_status") == "relation_verified"
+        item for item in eligible
+        if (item.get("verification") or {}).get("relation") == "verified"
+        or item.get("verification_status") == "relation_verified"
     ]
     prompt_evidence = list(prompt.get("embedded_prompts") or [])
-    has_prompt = bool(prompt_evidence or prompt.get("special_tokens"))
+    eligible_prompts = [
+        item for item in prompt_evidence
+        if _is_attribution_eligible(item)
+        or (
+            item.get("attribution_eligible") is None
+            and item.get("call_binding") == "relation_verified"
+            and item.get("role", "application") == "application"
+        )
+    ]
+    has_prompt_candidate = bool(prompt_evidence or prompt.get("special_tokens"))
+    analyzer_directives = [item for item in prompt_evidence if item.get("role") == "analyzer_directive"]
 
     if relation_evidence:
         grade = "static_relation_supported"
     elif evidence:
         grade = "marker_only"
-    elif has_prompt:
+    elif eligible_prompts:
+        grade = "static_relation_supported"
+    elif has_prompt_candidate:
         grade = "static_interaction_candidate"
     else:
         grade = "insufficient"
 
     # Keep the legacy label vocabulary readable by existing DB/UI consumers,
     # while evidence_grade carries the precise new semantics.
-    label = "unknown" if grade == "insufficient" else "probable"
-    strongest = max(evidence, key=_score) if evidence else None
-    heuristic_strength = _score(strongest) if strongest else (0.75 if has_prompt else 0.0)
+    label = "probable" if relation_evidence or eligible_prompts else "unknown"
+    strongest = max(eligible, key=_score) if eligible else None
+    heuristic_strength = _score(strongest) if strongest else (0.75 if eligible_prompts else 0.0)
 
     candidates = [_model_candidate(item) for item in model_evidence]
     candidates.sort(
@@ -77,7 +111,9 @@ def classify(toolchain: dict[str, Any], prompt: dict[str, Any]) -> dict[str, Any
         "raw_value": None,
         "source_type": None,
         "verification_status": "unverified",
+        "verification": {},
         "role": "unknown",
+        "attribution_eligible": False,
     }
     method = {
         "model_argument": "static_model_argument",
@@ -108,5 +144,10 @@ def classify(toolchain: dict[str, Any], prompt: dict[str, Any]) -> dict[str, Any
         },
         "model_attribution": model_attribution,
         "model_candidates": candidates,
-        "evidence_summary": (relation_evidence or evidence or prompt_evidence)[:10],
+        "evidence_summary": (relation_evidence or eligible_prompts or evidence or prompt_evidence)[:10],
+        "analysis_targeting": {
+            "detected": bool(analyzer_directives),
+            "evidence": analyzer_directives[:10],
+            "proves_model_use": False,
+        },
     }

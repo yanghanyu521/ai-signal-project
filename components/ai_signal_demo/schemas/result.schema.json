@@ -4,9 +4,41 @@
   "type": "object",
   "required": ["schema_version", "sample", "features", "classification", "errors"],
   "properties": {
-    "schema_version": {"enum": ["0.1", "0.2"]},
+    "schema_version": {"enum": ["0.1", "0.2", "0.3"]},
     "sample": {"type": "object", "required": ["sha256", "size", "file_type", "recoverability"]},
-    "features": {"type": "object", "required": ["toolchain", "prompt", "code_style", "recovery"]},
+    "features": {
+      "type": "object",
+      "required": ["toolchain", "prompt", "code_style", "recovery"],
+      "properties": {
+        "prompt": {
+          "type": "object",
+          "properties": {
+            "compositions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["composition_id", "target_call_unit_id", "components", "component_count", "runtime_complete", "completeness"],
+                "properties": {
+                  "composition_id": {"type": "string"},
+                  "target_call_unit_id": {"type": "string"},
+                  "components": {"type": "array"},
+                  "component_count": {"type": "integer", "minimum": 1},
+                  "unknown_component_count": {"type": ["integer", "null"], "minimum": 0},
+                  "runtime_complete": {"const": false},
+                  "completeness": {"const": "static_components_only"}
+                }
+              }
+            }
+          }
+        },
+        "code_generation_signals": {
+          "type": "object",
+          "properties": {"observations": {"type": "array"}}
+        },
+        "static_analysis": {"type": "object"},
+        "facts": {"type": "array"}
+      }
+    },
     "classification": {"type": "object", "required": ["llm_involvement", "model_attribution"]},
     "errors": {"type": "array"}
   }

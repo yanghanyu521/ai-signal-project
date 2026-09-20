@@ -68,6 +68,8 @@ public class GhidraExport extends GhidraScript {
                 }
                 out.println("{\"record_type\":\"function\",\"name\":" + q(function.getName(true))
                     + ",\"address\":" + q(function.getEntryPoint().toString())
+                    + ",\"body_start\":" + q(function.getBody().getMinAddress().toString())
+                    + ",\"body_end\":" + q(function.getBody().getMaxAddress().toString())
                     + ",\"calls\":" + array(calls) + ",\"content\":" + q(code)
                     + ",\"decompile_completed\":" + result.decompileCompleted() + "}");
             }

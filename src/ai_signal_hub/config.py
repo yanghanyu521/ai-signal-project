@@ -46,9 +46,15 @@ class Settings:
     sample_llm_api_key: str | None = field(default_factory=lambda: (
         os.getenv("SAMPLE_LLM_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or os.getenv("cc-api")
     ))
-    sample_llm_allow_remote: bool = field(default_factory=lambda: _bool_env("SAMPLE_LLM_ALLOW_REMOTE", True))
+    sample_llm_allow_remote: bool = field(default_factory=lambda: _bool_env("SAMPLE_LLM_ALLOW_REMOTE", False))
+    sample_llm_transfer_policy: str = field(default_factory=lambda: os.getenv(
+        "SAMPLE_LLM_TRANSFER_POLICY", "local_only"
+    ).strip().lower())
     sample_llm_mode: str = field(default_factory=lambda: os.getenv("SAMPLE_LLM_MODE", "coverage"))
     sample_llm_max_requests: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_REQUESTS", "128")))
+    sample_llm_max_reasoning_rounds: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_REASONING_ROUNDS", "4")))
+    sample_llm_max_queries_per_round: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_QUERIES_PER_ROUND", "8")))
+    sample_llm_max_context_units: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_CONTEXT_UNITS", "32")))
     sample_llm_timeout_seconds: float = field(default_factory=lambda: float(os.getenv("SAMPLE_LLM_TIMEOUT_SECONDS", "240")))
     sample_llm_max_input_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_INPUT_TOKENS", "64000")))
     sample_llm_max_output_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_OUTPUT_TOKENS", "16384")))

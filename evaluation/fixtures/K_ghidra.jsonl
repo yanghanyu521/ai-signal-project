@@ -1,0 +1,4 @@
+{"record_type":"metadata","tool":"ghidra","version":"fixture","language":"x86:LE:64:default"}
+{"record_type":"function","name":"entry","address":"00401000","body_start":"00401000","body_end":"0040104f","calls":["helper"],"content":"void entry(void) { helper(); puts(00402000); }","decompile_completed":true}
+{"record_type":"function","name":"helper","address":"00401100","body_start":"00401100","body_end":"0040112f","calls":[],"content":"void helper(void) { return; }","decompile_completed":true}
+{"record_type":"string","address":"00402000","content":"harmless-static-string","references":["00401020"]}

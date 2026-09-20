@@ -42,7 +42,29 @@ def _fact_id(group: str, raw: str, unit_ids: list[str]) -> str:
     return "fact:" + hashlib.sha256(value.encode("utf-8")).hexdigest()[:20]
 
 
-def _validate_facts(response: dict[str, Any], index: MaterialIndex) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _anchor_matches(anchor: dict[str, Any], group: str, raw: str, units: list[Any]) -> bool:
+    if anchor.get("signal_group") != group or anchor.get("raw_value") != raw:
+        return False
+    verification = anchor.get("verification") or {}
+    if verification.get("relation") != "verified" and anchor.get("verification_status") != "relation_verified":
+        return False
+    location = anchor.get("source_location") or {}
+    line = location.get("line")
+    if not isinstance(line, int):
+        return False
+    return any(
+        isinstance(unit.location.get("source_lines"), list)
+        and len(unit.location["source_lines"]) >= 2
+        and isinstance(unit.location["source_lines"][0], int)
+        and unit.location["source_lines"][0] <= line <= unit.location["source_lines"][1]
+        for unit in units
+    )
+
+
+def _validate_facts(
+    response: dict[str, Any], index: MaterialIndex,
+    relation_anchors: list[dict[str, Any]] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     units = {unit.unit_id: unit for unit in index.units}
     accepted, rejected = [], []
     for candidate in response.get("facts") or []:
@@ -94,6 +116,20 @@ def _validate_facts(response: dict[str, Any], index: MaterialIndex) -> tuple[lis
         )
         if not limitations:
             limitations = ["semantic_interpretation_not_deterministically_verified"]
+        proposed_role = candidate.get("role") if candidate.get("role") in {
+            "application", "dependency", "example", "analysis_helper", "analyzer_directive", "unknown"
+        } else "unknown"
+        material_roles = {unit.probable_role for unit in containing}
+        role = next(iter(material_roles)) if len(material_roles) == 1 else "unknown"
+        role_state = "verified" if role != "unknown" else "unknown"
+        relation_verified = any(
+            _anchor_matches(anchor, group, raw, containing) for anchor in (relation_anchors or [])
+        )
+        relation_state = "verified" if relation_verified else "candidate"
+        attribution_eligible = bool(
+            group in {"toolchain", "prompt"}
+            and relation_verified and role_state == "verified" and role == "application"
+        )
         fact = {
             "fact_id": _fact_id(group, raw, ids), "signal_group": group,
             "raw_value": raw, "normalized_value": normalized,
@@ -101,37 +137,67 @@ def _validate_facts(response: dict[str, Any], index: MaterialIndex) -> tuple[lis
             "source_location": {"unit_id": first.unit_id, "line": source_line,
                                 "unit_char_offset": char_offset},
             "evidence_text_hash": "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest(),
-            "discovery_method": "llm", "verification_status": "location_verified",
+            "discovery_method": "llm",
+            "verification_status": "relation_verified" if relation_verified else "location_verified",
+            "verification": {"location": "verified", "relation": relation_state, "role": role_state},
+            "attribution_eligible": attribution_eligible,
             # A model cannot mark its own interpretation as human-reviewed.
             "semantic_review_status": "needs_review",
             "limitations": limitations,
-            "role": candidate.get("role") if candidate.get("role") in {
-                "application", "dependency", "example", "analysis_helper", "analyzer_directive", "unknown"
-            } else "unknown",
+            "role": role,
+            "proposed_role": proposed_role,
         }
         accepted.append(fact)
     return accepted, rejected
 
 
-def _query_context(response: dict[str, Any], service: StaticQueryService, max_queries: int) -> tuple[list[dict], list[dict]]:
+def _query_context(
+    response: dict[str, Any], service: StaticQueryService, max_queries: int, *,
+    round_number: int, seen_queries: set[str], seen_unit_ids: set[str],
+    max_context_units: int,
+) -> tuple[list[dict], list[dict]]:
     results, audit = [], []
     for item in (response.get("queries") or [])[:max_queries]:
         if not isinstance(item, dict):
             continue
         name, arguments = str(item.get("name") or ""), item.get("arguments") or {}
-        result = service.execute(name, arguments if isinstance(arguments, dict) else {})
-        audit.append({"name": name, "arguments": arguments, "status": result.get("status"),
-                      "reason": result.get("reason")})
+        arguments = arguments if isinstance(arguments, dict) else {}
+        query_key = json.dumps([name, arguments], ensure_ascii=False, sort_keys=True)
+        source_unit_id = arguments.get("unit_id")
+        if query_key in seen_queries:
+            audit.append({"round": round_number, "source_unit_id": source_unit_id,
+                          "query": name, "arguments": arguments, "result_unit_ids": [],
+                          "status": "duplicate", "reason": "query_already_executed"})
+            continue
+        seen_queries.add(query_key)
+        result = service.execute(name, arguments)
+        new_units = []
         if result.get("status") == "ok":
-            results.append(result)
+            for unit in result.get("units") or []:
+                unit_id = unit.get("unit_id")
+                if not isinstance(unit_id, str) or unit_id in seen_unit_ids:
+                    continue
+                if len(seen_unit_ids) >= max_context_units:
+                    break
+                seen_unit_ids.add(unit_id)
+                new_units.append(unit)
+            if new_units:
+                results.append({**result, "units": new_units})
+        audit.append({"round": round_number, "source_unit_id": source_unit_id,
+                      "query": name, "arguments": arguments,
+                      "result_unit_ids": [unit["unit_id"] for unit in new_units],
+                      "status": result.get("status"), "reason": result.get("reason")})
     return results, audit
 
 
 def run_static_analysis(
     data: bytes, sample: dict[str, Any], artifact_dir: Path, *,
     llm_client: SampleLLMClient | None = None, mode: str = "coverage",
-    max_input_tokens: int = 64000, max_requests: int = 128, max_queries: int = 8,
+    max_input_tokens: int = 64000, max_requests: int = 128,
+    max_reasoning_rounds: int = 4, max_queries_per_round: int = 8,
+    max_context_units: int = 32,
     recovered_index: MaterialIndex | None = None,
+    relation_anchors: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if mode not in {"coverage", "budgeted"}:
         raise ValueError("SAMPLE_LLM_MODE 只能是 coverage 或 budgeted")
@@ -144,16 +210,48 @@ def run_static_analysis(
         **index.public_summary(),
         "units": [unit.as_dict(include_content=True) for unit in index.units],
     }, ensure_ascii=False, indent=2), encoding="utf-8")
+    recovery_coverage = dict(index.recovery_coverage or {})
+    if not recovery_coverage:
+        recovery_coverage = {
+            "artifacts_discovered": 1,
+            "artifacts_recovered": int(bool(index.units)),
+            "artifacts_failed": int(index.status == "failed"),
+        }
+    relation_keys = {"calls", "callers", "definitions", "resources", "strings", "previous", "next"}
+    relation_count = sum(
+        len(values) for unit in index.units for key, values in unit.references.items()
+        if key in relation_keys
+    )
+    material_coverage = {
+        "units_indexed": len(index.units),
+        "representations": sorted({unit.representation for unit in index.units}),
+        "roles": {role: sum(unit.probable_role == role for unit in index.units)
+                  for role in sorted({unit.probable_role for unit in index.units})},
+    }
+    relation_coverage = {
+        "resolved_relations": relation_count,
+        "units_with_relations": sum(any(unit.references.get(key) for key in relation_keys)
+                                    for unit in index.units),
+        "xrefs_available": bool(index.capabilities.get("xrefs")),
+        "dataflow_available": bool(index.capabilities.get("dataflow")),
+    }
     run = {
         "schema_version": "static-analysis-run/1.0", "mode": mode,
         "status": "unavailable" if llm_client is None else ("unsupported" if not index.units else "completed"),
         "index_status": index.status, "material_artifact": str(material_path.resolve()),
         "coverage": {"indexed_units": len(index.units), "screened_units": 0,
-                     "cached_units": 0, "failed_units": 0, "unprocessed_unit_ids": []},
+                     "cached_units": 0, "failed_units": 0, "unprocessed_unit_ids": [],
+                     "recovery_coverage": recovery_coverage,
+                     "material_coverage": material_coverage,
+                     "relation_coverage": relation_coverage},
         "budget": {"configured_total_token_budget": None, "estimated_tokens_used": 0,
                    "max_input_tokens_per_request": max_input_tokens,
-                   "provider_usage": {}, "requests": 0, "max_requests": max_requests},
+                   "provider_usage": {}, "requests": 0, "max_requests": max_requests,
+                   "max_reasoning_rounds": max_reasoning_rounds,
+                   "max_queries_per_round": max_queries_per_round,
+                   "max_context_units": max_context_units},
         "facts": [], "rejected_facts": [], "query_audit": [], "errors": [],
+        "llm_transfer": llm_client.transfer_metadata() if llm_client is not None and hasattr(llm_client, "transfer_metadata") else None,
         "limitations": list(index.limitations),
     }
     if llm_client is None:
@@ -179,9 +277,21 @@ def run_static_analysis(
             for key, value in (response.get("usage") or {}).items():
                 if isinstance(value, (int, float)):
                     run["budget"]["provider_usage"][key] = run["budget"]["provider_usage"].get(key, 0) + value
-            context, audit = _query_context(response, query_service, max_queries)
-            run["query_audit"].extend(audit)
-            if context and run["budget"]["requests"] < max_requests:
+            combined_facts = list(response.get("facts") or [])
+            seen_queries: set[str] = set()
+            seen_context_ids = {unit.unit_id for unit in batch}
+            context: list[dict[str, Any]] = []
+            current_response = response
+            for round_number in range(1, max_reasoning_rounds + 1):
+                new_context, audit = _query_context(
+                    current_response, query_service, max_queries_per_round,
+                    round_number=round_number, seen_queries=seen_queries,
+                    seen_unit_ids=seen_context_ids, max_context_units=max_context_units,
+                )
+                run["query_audit"].extend(audit)
+                if not new_context or run["budget"]["requests"] >= max_requests:
+                    break
+                context.extend(new_context)
                 context_estimate = _estimate_tokens(json.dumps(context, ensure_ascii=False))
                 try:
                     followup = llm_client.analyze(payloads, context)
@@ -190,13 +300,15 @@ def run_static_analysis(
                     for key, value in (followup.get("usage") or {}).items():
                         if isinstance(value, (int, float)):
                             run["budget"]["provider_usage"][key] = run["budget"]["provider_usage"].get(key, 0) + value
-                    response = {"facts": (response.get("facts") or []) + (followup.get("facts") or [])}
+                    combined_facts.extend(followup.get("facts") or [])
+                    current_response = followup
                 except Exception as exc:
                     run["errors"].append({"unit_ids": [unit.unit_id for unit in batch],
                                           "stage": "context_followup",
                                           "error": f"{type(exc).__name__}: {exc}"})
                     run["status"] = "partial"
-            facts, rejected = _validate_facts(response, index)
+                    break
+            facts, rejected = _validate_facts({"facts": combined_facts}, index, relation_anchors)
             run["facts"].extend(facts)
             run["rejected_facts"].extend(rejected)
         except Exception as exc:
@@ -208,5 +320,7 @@ def run_static_analysis(
             processed_units += len(batch)
     if run["errors"] and run["coverage"]["screened_units"] == 0:
         run["status"] = "failed"
+    if llm_client is not None and hasattr(llm_client, "transfer_metadata"):
+        run["llm_transfer"] = llm_client.transfer_metadata()
     run["elapsed_seconds"] = round(time.monotonic() - start, 4)
     return {"materials": index.public_summary(), "run": run}

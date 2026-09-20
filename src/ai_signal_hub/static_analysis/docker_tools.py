@@ -45,6 +45,8 @@ _JAVA_METHOD = re.compile(
     r"(?P<name>[A-Za-z_$][\w$]*)[ \t]*\([^;{}\n]*\)[ \t]*"
     r"(?:throws[ \t]+[^{}\n]+)?\{"
 )
+_JAVA_INVOCATION = re.compile(r"(?<![\w$])(?:(?P<class>[A-Za-z_$][\w$]*)\s*\.\s*)?(?P<name>[A-Za-z_$][\w$]*)\s*\(")
+_JAVA_STRING = re.compile(r'"(?P<value>(?:\\.|[^"\\])*)"')
 
 
 def _matching_brace(text: str, opening: int) -> int | None:
@@ -104,16 +106,34 @@ def _java_units(content: str, relative: str, sha256: str) -> list[AnalysisUnit]:
         method = content[match.start():end]
         start_line = content.count("\n", 0, match.start()) + 1
         end_line = content.count("\n", 0, end) + 1
-        units.append(AnalysisUnit(
+        method_unit = AnalysisUnit(
             _id(sha256, "jadx-method", f"{relative}:{start_line}:{name}", method), artifact,
             sha256, "decompiled_method", "java", "decompiled_source", method,
-            {"member_path": relative, "source_lines": [start_line, end_line], "symbol": name},
-            {"tool": "jadx", "version": "1.5.6", "source_mapping_quality": "decompiler_generated"},
+            {"member_path": relative, "source_lines": [start_line, end_line], "symbol": name,
+             "class_name": Path(relative).stem},
+            {"tool": "jadx", "version": "1.5.6", "source_mapping_quality": "decompiler_generated",
+             "relation_quality": "lexical_candidate"},
             parse_status="partial", limitations=["lexical_method_boundary_from_decompiler_output",
                                                    "decompiled_names_and_layout_are_not_author_style"],
             probable_role="unknown",
-        ))
+        )
+        units.append(method_unit)
         spans.append((match.start(), end))
+        for literal in _JAVA_STRING.finditer(method):
+            value = literal.group("value")
+            if not value:
+                continue
+            literal_line = start_line + method.count("\n", 0, literal.start())
+            units.append(AnalysisUnit(
+                _id(sha256, "jadx-string", f"{relative}:{literal_line}:{literal.start()}", value),
+                artifact, sha256, "string", "java", "decompiled_string_literal", value,
+                {"member_path": relative, "source_lines": [literal_line, literal_line],
+                 "owner_symbol": name, "owner_unit_id": method_unit.unit_id},
+                {"tool": "jadx", "version": "1.5.6", "source_mapping_quality": "decompiler_generated",
+                 "relation_quality": "lexical_candidate"},
+                {"callers": []}, parse_status="partial",
+                limitations=["string_literal_from_decompiler_output"], probable_role="unknown",
+            ))
     if spans:
         remainder_parts: list[str] = []
         cursor = 0
@@ -142,6 +162,56 @@ def _java_units(content: str, relative: str, sha256: str) -> list[AnalysisUnit]:
                                                "decompiled_names_and_layout_are_not_author_style"],
         probable_role="unknown",
     )]
+
+
+def _resolve_java_relations(units: list[AnalysisUnit]) -> None:
+    by_artifact: dict[str, list[AnalysisUnit]] = {}
+    for unit in units:
+        by_artifact.setdefault(unit.artifact_id, []).append(unit)
+    controls = {"if", "for", "while", "switch", "catch", "synchronized", "return", "new", "throw"}
+    for artifact_units in by_artifact.values():
+        methods = [unit for unit in artifact_units if unit.kind == "decompiled_method"]
+        names: dict[str, list[AnalysisUnit]] = {}
+        for method in methods:
+            names.setdefault(str(method.location.get("symbol") or ""), []).append(method)
+        strings = [unit for unit in artifact_units if unit.kind == "string"]
+        structure = next((unit for unit in artifact_units if unit.kind == "decompiled_class_structure"), None)
+        for method in methods:
+            calls: list[str] = []
+            for match in _JAVA_INVOCATION.finditer(method.content):
+                name = match.group("name")
+                if name in controls or name == method.location.get("symbol") and match.start() < method.content.find("{"):
+                    continue
+                targets = names.get(name) or []
+                if len(targets) == 1 and targets[0].unit_id != method.unit_id:
+                    calls.append(targets[0].unit_id)
+            method.references["calls"] = list(dict.fromkeys(calls))
+            method.references.setdefault("callers", [])
+            owned_strings = [unit for unit in strings if unit.location.get("owner_unit_id") == method.unit_id]
+            method.references["strings"] = [unit.unit_id for unit in owned_strings]
+            for string in owned_strings:
+                string.references["callers"] = [method.unit_id]
+            if structure:
+                identifiers = set(re.findall(r"\b[A-Za-z_$][\w$]*\b", method.content))
+                if any(re.search(rf"\b{re.escape(name)}\b\s*=", structure.content) for name in identifiers):
+                    method.references["definitions"] = [structure.unit_id]
+        by_id = {unit.unit_id: unit for unit in methods}
+        for caller in methods:
+            for callee_id in caller.references.get("calls", []):
+                if callee_id in by_id:
+                    by_id[callee_id].references.setdefault("callers", []).append(caller.unit_id)
+        for method in methods:
+            method.references["callers"] = list(dict.fromkeys(method.references.get("callers", [])))
+
+
+def _address_value(value: Any) -> int | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip().lower().removeprefix("0x").replace(":", "")
+    try:
+        return int(cleaned, 16)
+    except ValueError:
+        return None
 
 
 class DockerStaticTools:
@@ -274,12 +344,16 @@ class DockerStaticTools:
             total += len(content.encode("utf-8"))
             relative = path.relative_to(output_dir).as_posix()
             units.extend(_java_units(content, relative, sha256))
+        _resolve_java_relations(units)
         return MaterialIndex(
             sha256, "java", "partial" if units else "failed",
             {"text": bool(units), "constants": bool(units),
              "functions": any(unit.kind == "decompiled_method" for unit in units),
-             "xrefs": False, "dataflow": False}, units,
-            ["jadx_decompilation_may_be_incomplete", "decompiled_style_not_author_style"],
+             "xrefs": any(bool(unit.references.get("calls") or unit.references.get("callers")
+                                or unit.references.get("strings")) for unit in units),
+             "dataflow": False}, units,
+            ["jadx_decompilation_may_be_incomplete", "decompiled_style_not_author_style",
+             "jadx_relations_are_lexical_candidates"],
         )
 
     @staticmethod
@@ -287,6 +361,7 @@ class DockerStaticTools:
         sha256 = str(sample.get("sha256") or "unknown")
         path = output_dir / "ghidra.jsonl"
         units: list[AnalysisUnit] = []
+        records: list[dict[str, Any]] = []
         metadata: dict[str, Any] = {}
         imports: list[str] = []
         if path.is_file():
@@ -301,22 +376,65 @@ class DockerStaticTools:
                 elif kind == "import" and item.get("name"):
                     imports.append(str(item["name"]))
                 elif kind in {"function", "string"} and item.get("content"):
-                    content = str(item["content"])
-                    location = str(item.get("address") or "unknown")
-                    units.append(AnalysisUnit(
+                    records.append(item)
+        for item in records:
+            kind = item.get("record_type")
+            content = str(item["content"])
+            location = str(item.get("address") or "unknown")
+            units.append(AnalysisUnit(
                         _id(sha256, "ghidra", location, content), f"ghidra:{location}", sha256,
                         "decompiled_function" if kind == "function" else "string",
                         str(metadata.get("language") or "native"),
                         "decompiled_pseudocode" if kind == "function" else "extracted_string",
-                        content, {"virtual_address": location},
+                        content, {"virtual_address": location, "symbol": item.get("name"),
+                                  "body_start": item.get("body_start"), "body_end": item.get("body_end")},
                         {"tool": "ghidra", "version": metadata.get("version"),
                          "source_mapping_quality": "virtual_address"},
                         {"calls": item.get("calls") or [], "callers": [], "definitions": [],
-                         "resources": [], "strings": item.get("references") or []},
+                         "resources": [], "strings": [],
+                         "referenced_from_addresses": item.get("references") or []},
                         "parsed" if item.get("decompile_completed", True) else "partial",
                         ["decompiled_names_and_layout_are_not_author_style"] if kind == "function" else [],
                         "unknown",
                     ))
+        functions = [unit for unit in units if unit.kind == "decompiled_function"]
+        strings = [unit for unit in units if unit.kind == "string"]
+        names: dict[str, list[str]] = {}
+        for function in functions:
+            name = str(function.location.get("symbol") or "")
+            for key in {name, name.rsplit("::", 1)[-1]}:
+                if key:
+                    names.setdefault(key, []).append(function.unit_id)
+        by_id = {unit.unit_id: unit for unit in functions}
+        for function in functions:
+            resolved, unresolved = [], []
+            for called in function.references.get("calls", []):
+                targets = names.get(str(called)) or names.get(str(called).rsplit("::", 1)[-1]) or []
+                if len(targets) == 1:
+                    resolved.append(targets[0])
+                else:
+                    unresolved.append(str(called))
+            function.references["calls"] = list(dict.fromkeys(resolved))
+            function.references["unresolved_calls"] = list(dict.fromkeys(unresolved))
+            for callee_id in resolved:
+                by_id[callee_id].references.setdefault("callers", []).append(function.unit_id)
+        for string in strings:
+            callers: list[str] = []
+            for address in string.references.pop("referenced_from_addresses", []):
+                reference = _address_value(address)
+                if reference is None:
+                    continue
+                for function in functions:
+                    start = _address_value(function.location.get("body_start") or function.location.get("virtual_address"))
+                    end = _address_value(function.location.get("body_end") or function.location.get("virtual_address"))
+                    if start is not None and end is not None and start <= reference <= end:
+                        callers.append(function.unit_id)
+            string.references["callers"] = list(dict.fromkeys(callers))
+            for caller_id in string.references["callers"]:
+                by_id[caller_id].references.setdefault("strings", []).append(string.unit_id)
+        for function in functions:
+            function.references["callers"] = list(dict.fromkeys(function.references.get("callers", [])))
+            function.references["strings"] = list(dict.fromkeys(function.references.get("strings", [])))
         if imports:
             content = "\n".join(dict.fromkeys(imports))
             units.append(AnalysisUnit(
@@ -330,7 +448,8 @@ class DockerStaticTools:
             sha256, str(metadata.get("language") or "native"), "partial" if units else "failed",
             {"text": bool(units), "constants": any(unit.kind == "string" for unit in units),
              "functions": any(unit.kind == "decompiled_function" for unit in units),
-             "xrefs": any(bool(unit.references.get("calls") or unit.references.get("strings")) for unit in units),
+             "xrefs": any(bool(unit.references.get("calls") or unit.references.get("callers")
+                                or unit.references.get("strings")) for unit in units),
              "dataflow": False}, units,
             ["ghidra_decompilation_may_be_incomplete", "decompiled_style_not_author_style"],
         )

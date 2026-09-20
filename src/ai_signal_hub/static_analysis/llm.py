@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import re
 import time
 from typing import Any
 from urllib.parse import urlparse
@@ -21,14 +23,18 @@ Use code_observation only for meaningful generation markers or structural observ
 class SampleLLMClient:
     def __init__(self, *, base_url: str, model: str, api_key: str | None,
                  allow_remote: bool, timeout_seconds: float = 60.0,
+                 transfer_policy: str = "local_only",
                  max_output_tokens: int = 16384,
                  transport: httpx.BaseTransport | None = None):
         parsed = urlparse(base_url)
         local_hosts = {"127.0.0.1", "localhost", "::1"}
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("SAMPLE_LLM_BASE_URL 必须是有效的 http(s) 地址")
-        if parsed.hostname not in local_hosts and not allow_remote:
-            raise ValueError("样本代码外发未启用；非本地 SAMPLE_LLM_BASE_URL 被拒绝")
+        if transfer_policy not in {"local_only", "remote_redacted", "remote_full"}:
+            raise ValueError("SAMPLE_LLM_TRANSFER_POLICY 只能是 local_only/remote_redacted/remote_full")
+        remote = parsed.hostname not in local_hosts
+        if remote and (not allow_remote or transfer_policy == "local_only"):
+            raise ValueError("样本代码外发未启用；远端地址要求 ALLOW_REMOTE=true 且显式 remote_* 策略")
         if not model.strip():
             raise ValueError("启用样本侧 LLM 时必须配置 SAMPLE_LLM_MODEL")
         self.base_url = base_url.rstrip("/")
@@ -37,9 +43,83 @@ class SampleLLMClient:
         self.timeout_seconds = timeout_seconds
         self.max_output_tokens = max_output_tokens
         self.transport = transport
+        self.remote = remote
+        self.provider_host = parsed.hostname
+        self.transfer_policy = transfer_policy
+        self.redaction_count = 0
+
+    @staticmethod
+    def _placeholder(secret: str) -> str:
+        return "__REDACTED_" + hashlib.sha256(secret.encode("utf-8")).hexdigest()[:12] + "__"
+
+    @classmethod
+    def _redact_text(cls, text: str) -> tuple[str, int]:
+        count = 0
+
+        def replace_value(match: re.Match[str]) -> str:
+            nonlocal count
+            count += 1
+            return match.group("prefix") + cls._placeholder(match.group("secret"))
+
+        value_pattern = re.compile(
+            r"(?i)(?P<prefix>\b(?:api[_-]?key|access[_-]?token|secret|password|credential|authorization)\b"
+            r"\s*[:=]\s*[\"']?(?:bearer\s+)?)"
+            r"(?P<secret>[A-Za-z0-9_./+=-]{8,})"
+        )
+        text = value_pattern.sub(replace_value, text)
+
+        def replace_standalone(match: re.Match[str]) -> str:
+            nonlocal count
+            count += 1
+            return cls._placeholder(match.group(0))
+
+        text = re.sub(r"\bsk-[A-Za-z0-9_-]{8,}\b", replace_standalone, text)
+        text = re.sub(
+            r"-----BEGIN(?: [A-Z0-9]+)? PRIVATE KEY-----[\s\S]*?-----END(?: [A-Z0-9]+)? PRIVATE KEY-----",
+            replace_standalone, text, flags=re.IGNORECASE,
+        )
+        return text, count
+
+    @classmethod
+    def _redact_value(cls, value: Any) -> tuple[Any, int]:
+        if isinstance(value, str):
+            return cls._redact_text(value)
+        if isinstance(value, list):
+            output, total = [], 0
+            for item in value:
+                redacted, count = cls._redact_value(item)
+                output.append(redacted)
+                total += count
+            return output, total
+        if isinstance(value, dict):
+            output, total = {}, 0
+            for key, item in value.items():
+                if re.search(r"(?i)(?:api[_-]?key|access[_-]?token|secret|password|credential|authorization)$", str(key)) \
+                        and isinstance(item, str) and item:
+                    output[key] = cls._placeholder(item)
+                    total += 1
+                else:
+                    output[key], count = cls._redact_value(item)
+                    total += count
+            return output, total
+        return value, 0
+
+    def transfer_metadata(self) -> dict[str, Any]:
+        return {
+            "provider": self.provider_host,
+            "remote": self.remote,
+            "destination": "remote" if self.remote else "local",
+            "provider_host": self.provider_host,
+            "policy": self.transfer_policy,
+            "redaction_count": self.redaction_count,
+            "redaction_mapping_persisted": False,
+        }
 
     def analyze(self, units: list[dict[str, Any]], context: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         payload = {"units": units, "context_results": context or []}
+        if self.remote and self.transfer_policy == "remote_redacted":
+            payload, redacted = self._redact_value(payload)
+            self.redaction_count += redacted
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"

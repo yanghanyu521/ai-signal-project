@@ -9,8 +9,9 @@ from pathlib import Path
 import httpx
 
 from ai_signal_hub.config import Settings
+from ai_signal_hub.legacy import LegacyAdapters
 from ai_signal_hub.static_analysis.llm import SampleLLMClient
-from ai_signal_hub.static_analysis.materials import build_material_index, split_large_units
+from ai_signal_hub.static_analysis.materials import AnalysisUnit, MaterialIndex, build_material_index, split_large_units
 from ai_signal_hub.static_analysis.pipeline import run_static_analysis
 from ai_signal_hub.static_analysis.query import StaticQueryService
 from ai_signal_hub.static_analysis.docker_tools import DockerStaticTools
@@ -49,6 +50,44 @@ def test_query_layer_rejects_arbitrary_file_or_shell_requests() -> None:
     assert service.execute("read_file", {"path": "C:/Windows/System32/config/SAM"})["status"] == "rejected"
     assert service.execute("execute_shell", {"command": "whoami"})["status"] == "rejected"
     assert service.execute("get_unit", {"unit_id": "unit:not-indexed"})["reason"] == "unknown_unit_id"
+
+
+def test_multiround_query_follows_new_units_and_audits_each_hop(tmp_path: Path) -> None:
+    sha = "7" * 64
+    units = [
+        AnalysisUnit("unit:a", "sample:a", sha, "source_function", "python", "original_source",
+                     "A" * 900, {"source_lines": [1, 1]}, {"tool": "fixture"},
+                     {"calls": ["unit:b"]}),
+        AnalysisUnit("unit:b", "sample:a", sha, "source_function", "python", "original_source",
+                     "B" * 900, {"source_lines": [2, 2]}, {"tool": "fixture"},
+                     {"calls": ["unit:c"]}),
+        AnalysisUnit("unit:c", "sample:a", sha, "source_function", "python", "original_source",
+                     "C" * 900, {"source_lines": [3, 3]}, {"tool": "fixture"}),
+    ]
+    index = MaterialIndex(sha, "python", "partial", {
+        "text": True, "constants": True, "functions": True, "xrefs": True, "dataflow": False,
+    }, units)
+
+    class MultiRoundClient:
+        def analyze(self, payload, context=None):
+            context_ids = {
+                unit["unit_id"] for result in (context or []) for unit in result.get("units", [])
+            }
+            initial_ids = {unit["unit_id"] for unit in payload}
+            if "unit:a" in initial_ids and not context_ids:
+                return {"facts": [], "queries": [{"name": "get_callees", "arguments": {"unit_id": "unit:a"}}]}
+            if "unit:b" in context_ids and "unit:c" not in context_ids:
+                return {"facts": [], "queries": [{"name": "get_callees", "arguments": {"unit_id": "unit:b"}}]}
+            return {"facts": [], "queries": []}
+
+    result = run_static_analysis(
+        b"fixture", {"sha256": sha}, tmp_path, llm_client=MultiRoundClient(),
+        recovered_index=index, max_input_tokens=512, max_reasoning_rounds=4,
+    )
+    hops = [item for item in result["run"]["query_audit"] if item["result_unit_ids"]]
+    assert [(item["round"], item["source_unit_id"], item["result_unit_ids"]) for item in hops[:2]] == [
+        (1, "unit:a", ["unit:b"]), (2, "unit:b", ["unit:c"]),
+    ]
 
 
 def test_local_llm_chain_accepts_unknown_names_and_rejects_bad_citations(tmp_path: Path) -> None:
@@ -91,9 +130,57 @@ def test_local_llm_chain_accepts_unknown_names_and_rejects_bad_citations(tmp_pat
     assert calls
 
 
+def test_location_only_llm_model_candidate_is_not_attribution_eligible(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        units = json.loads(json.loads(request.content)["messages"][1]["content"])["units"]
+        unit = next(item for item in units if "nebula-not-in-rules" in item["content"])
+        response = {"facts": [{
+            "signal_group": "toolchain", "raw_value": "nebula-not-in-rules",
+            "normalized_value": {"model_identifier_raw": "nebula-not-in-rules"},
+            "source_unit_ids": [unit["unit_id"]], "role": "application",
+        }], "queries": []}
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(response)}}]})
+
+    client = SampleLLMClient(base_url="http://127.0.0.1:11434/v1", model="fixture",
+                             api_key=None, allow_remote=False, transport=httpx.MockTransport(handler))
+    fact = run_static_analysis(SOURCE, sample(), tmp_path, llm_client=client)["run"]["facts"][0]
+    assert fact["verification"] == {"location": "verified", "relation": "candidate", "role": "verified"}
+    assert fact["role"] == "application"
+    assert fact["proposed_role"] == "application"
+    assert fact["attribution_eligible"] is False
+
+
+def test_relation_anchor_promotes_llm_candidate_but_not_llm_role_claim(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        units = json.loads(json.loads(request.content)["messages"][1]["content"])["units"]
+        unit = next(item for item in units if "nebula-not-in-rules" in item["content"])
+        response = {"facts": [{
+            "signal_group": "toolchain", "raw_value": "nebula-not-in-rules",
+            "normalized_value": {"model_identifier_raw": "nebula-not-in-rules"},
+            "source_unit_ids": [unit["unit_id"]], "role": "dependency",
+        }], "queries": []}
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(response)}}]})
+
+    anchors = [{
+        "signal_group": "toolchain", "raw_value": "nebula-not-in-rules",
+        "verification_status": "relation_verified",
+        "source_location": {"line": 1}, "role": "application",
+    }]
+    client = SampleLLMClient(base_url="http://127.0.0.1:11434/v1", model="fixture",
+                             api_key=None, allow_remote=False, transport=httpx.MockTransport(handler))
+    fact = run_static_analysis(
+        SOURCE, sample(), tmp_path, llm_client=client, relation_anchors=anchors,
+    )["run"]["facts"][0]
+    assert fact["verification"] == {"location": "verified", "relation": "verified", "role": "verified"}
+    assert fact["role"] == "application"
+    assert fact["proposed_role"] == "dependency"
+    assert fact["attribution_eligible"] is True
+
+
 def test_sample_llm_reuses_deepseek_defaults_and_cc_api(monkeypatch) -> None:
     for name in ("SAMPLE_LLM_API_KEY", "DEEPSEEK_API_KEY", "SAMPLE_LLM_MODEL",
-                 "DEEPSEEK_MODEL", "SAMPLE_LLM_BASE_URL", "DEEPSEEK_BASE_URL"):
+                 "DEEPSEEK_MODEL", "SAMPLE_LLM_BASE_URL", "DEEPSEEK_BASE_URL",
+                 "SAMPLE_LLM_ALLOW_REMOTE", "SAMPLE_LLM_TRANSFER_POLICY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("cc-api", "fixture-secret")
     settings = Settings()
@@ -102,6 +189,8 @@ def test_sample_llm_reuses_deepseek_defaults_and_cc_api(monkeypatch) -> None:
     assert settings.sample_llm_model == "deepseek-v4-flash"
     assert settings.sample_llm_base_url == "https://api.deepseek.com"
     assert settings.sample_llm_max_requests == 128
+    assert settings.sample_llm_allow_remote is False
+    assert settings.sample_llm_transfer_policy == "local_only"
 
 
 def test_deepseek_v4_payload_uses_thinking_and_no_total_budget(monkeypatch) -> None:
@@ -118,7 +207,8 @@ def test_deepseek_v4_payload_uses_thinking_and_no_total_budget(monkeypatch) -> N
     monkeypatch.setenv("SAMPLE_LLM_REASONING_EFFORT", "low")
     client = SampleLLMClient(
         base_url="https://api.deepseek.com", model="deepseek-v4-flash",
-        api_key="fixture", allow_remote=True, transport=httpx.MockTransport(handler),
+        api_key="fixture", allow_remote=True, transfer_policy="remote_full",
+        transport=httpx.MockTransport(handler),
     )
     client.analyze([])
     assert captured["thinking"] == {"type": "enabled"}
@@ -133,6 +223,64 @@ def test_remote_sample_llm_requires_explicit_policy() -> None:
         assert "外发未启用" in str(exc)
     else:
         raise AssertionError("remote sample service must be rejected by default")
+    try:
+        SampleLLMClient(base_url="https://external.example/v1", model="x", api_key=None,
+                        allow_remote=True, transfer_policy="local_only")
+    except ValueError as exc:
+        assert "remote_*" in str(exc)
+    else:
+        raise AssertionError("allow_remote alone must not authorize full sample transfer")
+
+
+def test_default_remote_policy_blocks_model_without_failing_deterministic_analysis(tmp_path: Path) -> None:
+    project = Path(__file__).resolve().parents[1]
+    source = tmp_path / "sample.py"
+    source.write_bytes(SOURCE)
+    settings = Settings(
+        project_root=project, workspace_root=project.parent, data_dir=tmp_path / "data",
+        legacy_sample_project=project / "components" / "ai_signal_demo",
+        legacy_report_project=project / "components" / "report_extractor",
+        seed_data_dir=project / "components" / "seed_data",
+        sample_llm_enabled=True, sample_llm_base_url="https://api.deepseek.com",
+        sample_llm_model="deepseek-v4-flash", sample_llm_api_key="configured-but-not-sent",
+        sample_llm_allow_remote=False, sample_llm_transfer_policy="local_only",
+        static_tools_docker_enabled=False,
+    )
+    result = LegacyAdapters(settings).analyze_sample(source, tmp_path / "artifacts")
+    run = result["features"]["static_analysis"]["run"]
+    assert run["status"] == "unavailable"
+    assert "sample_llm_remote_policy_blocked" in run["limitations"]
+    assert run["llm_transfer"]["destination"] == "blocked"
+    assert result["classification"]["llm_involvement"]["label"] == "unknown"
+    assert result["features"]["static_analysis"]["materials"]["unit_count"] > 0
+
+
+def test_remote_redacted_policy_removes_secrets_and_keeps_only_audit_counts() -> None:
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={
+            "choices": [{"message": {"content": '{"facts": [], "queries": []}'}}],
+        })
+
+    client = SampleLLMClient(
+        base_url="https://external.example/v1", model="fixture", api_key="transport-only",
+        allow_remote=True, transfer_policy="remote_redacted", transport=httpx.MockTransport(handler),
+    )
+    client.analyze([{"unit_id": "unit:x", "content": (
+        'api_key = "sk-sensitive12345"\ncredential=fixture-credential-123\n'
+        '-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----'
+    )}])
+    serialized = json.dumps(captured, ensure_ascii=False)
+    assert "sk-sensitive12345" not in serialized
+    assert "private-material" not in serialized
+    assert "__REDACTED_" in serialized
+    audit = client.transfer_metadata()
+    assert audit["policy"] == "remote_redacted"
+    assert audit["redaction_count"] >= 1
+    assert audit["redaction_mapping_persisted"] is False
+    assert "mapping" not in audit
 
 
 def test_request_limit_is_visible_not_silent(tmp_path: Path) -> None:
@@ -147,6 +295,16 @@ def test_request_limit_is_visible_not_silent(tmp_path: Path) -> None:
     assert result["run"]["budget"]["configured_total_token_budget"] is None
 
 
+def test_coverage_separates_recovery_material_and_relations(tmp_path: Path) -> None:
+    result = run_static_analysis(SOURCE, sample(), tmp_path, llm_client=None)
+    coverage = result["run"]["coverage"]
+    assert coverage["recovery_coverage"]["artifacts_discovered"] == 1
+    assert coverage["material_coverage"]["units_indexed"] == result["materials"]["unit_count"]
+    assert "original_source" in coverage["material_coverage"]["representations"]
+    assert coverage["relation_coverage"]["resolved_relations"] > 0
+    assert coverage["relation_coverage"]["dataflow_available"] is True
+
+
 def test_javascript_powershell_and_binary_have_truthful_material_status() -> None:
     js = build_material_index(b"function run(x) { return client.invoke(x); }", {
         "sha256": "b" * 64, "language": "javascript", "source_encoding": "utf-8"})
@@ -158,6 +316,21 @@ def test_javascript_powershell_and_binary_have_truthful_material_status() -> Non
     assert js.capabilities["functions"] is True and js.capabilities["xrefs"] is False
     assert ps.capabilities["functions"] is True and ps.capabilities["dataflow"] is False
     assert binary.status == "partial" and "no_decompiler_material" in binary.limitations
+
+
+def test_archive_member_paths_assign_static_roles() -> None:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("app/main.py", "value = 'application'\n")
+        archive.writestr("vendor/sdk.py", "value = 'dependency'\n")
+        archive.writestr("examples/demo.py", "value = 'example'\n")
+    index = build_material_index(buffer.getvalue(), {
+        "sha256": "9" * 64, "file_type": "Zip archive", "language": None,
+    })
+    roles = {unit.location.get("member_path"): unit.probable_role for unit in index.units}
+    assert roles["app/main.py"] == "application"
+    assert roles["vendor/sdk.py"] == "dependency"
+    assert roles["examples/demo.py"] == "example"
 
 
 def test_sample_analysis_runs_are_append_only(tmp_path: Path) -> None:
@@ -202,7 +375,11 @@ class FixtureDockerTools(DockerStaticTools):
             path.parent.mkdir(parents=True)
             path.write_text('''class Client {
     String model = "docker-nebula";
+    void helper() {
+        System.out.println("fixture-prompt");
+    }
     void send() {
+        helper();
         client.invoke(model);
     }
 }
@@ -212,8 +389,16 @@ class FixtureDockerTools(DockerStaticTools):
                 json.dumps({"record_type": "metadata", "tool": "ghidra", "version": "fixture",
                             "language": "x86:LE:64:default"}),
                 json.dumps({"record_type": "function", "name": "entry", "address": "00401000",
-                            "calls": ["invoke_model"], "content": "void entry(void) { invoke_model(); }",
+                            "body_start": "00401000", "body_end": "0040104f",
+                            "calls": ["helper", "external_api"],
+                            "content": "void entry(void) { helper(); puts(00402000); }",
                             "decompile_completed": True}),
+                json.dumps({"record_type": "function", "name": "helper", "address": "00401100",
+                            "body_start": "00401100", "body_end": "0040112f",
+                            "calls": [], "content": "void helper(void) { return; }",
+                            "decompile_completed": True}),
+                json.dumps({"record_type": "string", "address": "00402000",
+                            "content": "fixture-prompt", "references": ["00401020"]}),
             ]), encoding="utf-8")
         return {"tool": kind, "image": image, "status": "completed", "exit_code": 0,
                 "network": "none", "log": "fixture"}
@@ -230,13 +415,34 @@ def test_docker_adapters_add_real_decompiler_material_contract(tmp_path: Path) -
     apk = tools.augment(build_material_index(apk_data, apk_sample), apk_data, apk_sample, tmp_path / "apk")
     assert any(unit.representation == "decompiled_source" and "docker-nebula" in unit.content for unit in apk.units)
     assert any(unit.kind == "decompiled_method" and "client.invoke" in unit.content for unit in apk.units)
+    send = next(unit for unit in apk.units if unit.kind == "decompiled_method"
+                and unit.location.get("symbol") == "send")
+    helper = next(unit for unit in apk.units if unit.kind == "decompiled_method"
+                  and unit.location.get("symbol") == "helper")
+    literal = next(unit for unit in apk.units if unit.kind == "string" and unit.content == "fixture-prompt")
+    assert send.references["calls"] == [helper.unit_id]
+    assert helper.references["callers"] == [send.unit_id]
+    assert literal.references["callers"] == [helper.unit_id]
+    assert StaticQueryService(apk).execute("get_callees", {"unit_id": send.unit_id})["units"][0]["unit_id"] == helper.unit_id
     assert apk.capabilities["functions"] is True
+    assert apk.capabilities["xrefs"] is True
     assert apk.tool_runs[-1]["status"] == "completed"
 
     native_data = b"MZ\x00\x00harmless fixture"
     native_sample = {"sha256": "2" * 64, "language": None, "file_type": "PE32"}
     native = tools.augment(build_material_index(native_data, native_sample), native_data, native_sample,
                            tmp_path / "native")
-    function = next(unit for unit in native.units if unit.kind == "decompiled_function")
-    assert function.location["virtual_address"] == "00401000"
-    assert function.references["calls"] == ["invoke_model"]
+    entry = next(unit for unit in native.units if unit.kind == "decompiled_function"
+                 and unit.location.get("symbol") == "entry")
+    native_helper = next(unit for unit in native.units if unit.kind == "decompiled_function"
+                         and unit.location.get("symbol") == "helper")
+    native_string = next(unit for unit in native.units if unit.kind == "string"
+                         and unit.artifact_id.startswith("ghidra:"))
+    assert entry.location["virtual_address"] == "00401000"
+    assert entry.references["calls"] == [native_helper.unit_id]
+    assert entry.references["unresolved_calls"] == ["external_api"]
+    assert native_helper.references["callers"] == [entry.unit_id]
+    assert native_string.references["callers"] == [entry.unit_id]
+    query = StaticQueryService(native).execute("get_references", {"unit_id": native_string.unit_id})
+    assert [unit["unit_id"] for unit in query["units"]] == [entry.unit_id]
+    assert query["unresolved"] == []

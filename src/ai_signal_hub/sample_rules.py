@@ -195,6 +195,8 @@ def _prompt_candidates(text, comments, codec, bom):
         found.append({
             "rule_id": "ai_analyzer_comment_directive_v1", "target": "ai_analyzer",
             "evidence_level": "static_candidate", "source": "source_comment",
+            "role": "analyzer_directive", "attribution_eligible": False,
+            "verification": {"location": "verified", "relation": "unknown", "role": "verified"},
             "offset": offset, "byte_length": len(value.encode(codec)), "encoding": codec,
             "text": value, "text_preview": " ".join(value.split())[:240],
             "text_hash": "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest(),

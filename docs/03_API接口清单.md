@@ -40,7 +40,7 @@
 
 ## Prompt 上下文恢复扩展
 
-样本分析入口另已接入 `prompt-context-recovery-v1`。`result_json.features.prompt.recovery_diagnostics` 记录恢复阶段与限制；新增候选包含 `text / boundary / completeness / call_binding / comparison_eligible / recovery_origin / extraction_version`。静态组成部分不等于完整运行时请求，`comparison_eligible=false` 的不确定窗口仅有 `evidence_text_hash`，无 `text_hash / fuzzy_hash`，不作为全文计算精确或模糊匹配。源码不执行、样本不发往模型。支持范围、13个样本复核和生效条件见[Prompt修复说明](13_工具链阳性样本Prompt漏提复核与修复_20260903.md)。
+样本分析入口另已接入 `prompt-context-recovery-v1`。`result_json.features.prompt.recovery_diagnostics` 记录恢复阶段与限制；新增候选包含 `text / boundary / completeness / call_binding / comparison_eligible / recovery_origin / extraction_version`。静态组成部分不等于完整运行时请求，`comparison_eligible=false` 的不确定窗口仅有 `evidence_text_hash`，无 `text_hash / fuzzy_hash`，不作为全文计算精确或模糊匹配。源码从不执行；样本材料默认不外发，只有双重显式开启远端及传输策略后才会发送。支持范围见[Prompt修复说明](13_工具链阳性样本Prompt漏提复核与修复_20260903.md)和[v0.7证据架构](19_静态AI信号证据验证架构_v0.7.md)。
 
 ## 错误约定
 

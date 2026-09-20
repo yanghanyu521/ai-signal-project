@@ -1,0 +1,13 @@
+[
+  {"id":"A","category":"known_positive","fixture":"A_known_positive.py","expected_models":["gpt-4o-mini"],"expected_toolchains":["openai"],"expected_prompt_components":["Classify this harmless synthetic record."],"hard_negative_values":[],"expected_role":"application"},
+  {"id":"B","category":"unseen_model","fixture":"B_unseen_model.py","expected_models":["harmless-nebula-v9"],"expected_toolchains":["openai"],"expected_prompt_components":["Summarize the supplied harmless test note."],"hard_negative_values":[],"expected_role":"application"},
+  {"id":"C","category":"custom_endpoint","fixture":"C_custom_endpoint.py","expected_models":["private-router-alpha"],"expected_toolchains":["openai","https://llm.invalid.example/v1"],"expected_prompt_components":["Label this harmless fixture."],"hard_negative_values":[],"expected_role":"application"},
+  {"id":"D","category":"decoy","fixture":"D_decoy.py","expected_models":[],"expected_prompt_components":[],"hard_negative_values":["GPT-4","OpenAI"],"expected_role":"application"},
+  {"id":"E","category":"dependency","fixture":"E_dependency.py","expected_models":[],"expected_prompt_components":[],"hard_negative_values":["gpt-example-only","openai"],"expected_role":"dependency"},
+  {"id":"F","category":"example","fixture":"F_example.py","expected_models":[],"expected_prompt_components":[],"hard_negative_values":["gpt-example"],"expected_role":"example"},
+  {"id":"G","category":"analyzer_directive","fixture":"G_analyzer_directive.ps1","expected_models":[],"expected_prompt_components":[],"hard_negative_values":[],"expected_analysis_targeting":true,"expected_role":"analyzer_directive"},
+  {"id":"H","category":"dynamic_prompt","fixture":"H_dynamic_prompt.py","expected_models":["dynamic-model-v1"],"expected_toolchains":["openai"],"expected_prompt_components":["Summarize ","this harmless synthetic record."],"hard_negative_values":[],"expected_role":"application"},
+  {"id":"I","category":"wrapper","fixture":"I_wrapper.py","expected_models":["wrapped-private-v2"],"expected_toolchains":["openai"],"expected_prompt_components":["Review this harmless wrapper fixture."],"hard_negative_values":[],"expected_role":"application"},
+  {"id":"J","category":"multiple_models","fixture":"J_multiple_models.py","expected_models":["model-alpha","model-beta"],"expected_toolchains":["openai"],"expected_prompt_components":["Classify harmless input A.","Classify harmless input B."],"hard_negative_values":[],"expected_role":"application"},
+  {"id":"K","category":"binary_decompiled","fixture":"K_ghidra.jsonl","expected_models":[],"expected_prompt_components":[],"hard_negative_values":[],"expected_resolved_calls":1,"expected_string_references":1}
+]

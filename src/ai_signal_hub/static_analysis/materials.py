@@ -52,6 +52,7 @@ class MaterialIndex:
     units: list[AnalysisUnit]
     limitations: list[str] = field(default_factory=list)
     tool_runs: list[dict[str, Any]] = field(default_factory=list)
+    recovery_coverage: dict[str, Any] = field(default_factory=dict)
 
     def public_summary(self) -> dict[str, Any]:
         return {
@@ -60,6 +61,7 @@ class MaterialIndex:
             "capabilities": self.capabilities, "unit_count": len(self.units),
             "limitations": self.limitations,
             "tool_runs": self.tool_runs,
+            "recovery_coverage": self.recovery_coverage,
             "units": [unit.as_dict(include_content=False) for unit in self.units],
         }
 
@@ -71,6 +73,18 @@ def _unit_id(sha256: str, kind: str, start: int, content: str) -> str:
 
 def _lines(text: str, start: int, end: int) -> str:
     return "".join(text.splitlines(keepends=True)[start - 1:end])
+
+
+def _member_role(path: str) -> str:
+    lowered = path.replace("\\", "/").casefold()
+    parts = {part for part in lowered.split("/") if part}
+    if parts & {"site-packages", "node_modules", "vendor", "third_party", "third-party"}:
+        return "dependency"
+    if parts & {"examples", "example", "samples", "sample", "demo", "demos", "docs", "tests", "test"}:
+        return "example"
+    if any(name in lowered for name in ("readme", "usage", "help")):
+        return "example"
+    return "application"
 
 
 def _python_index(text: str, sha256: str) -> MaterialIndex:
@@ -229,21 +243,30 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
     units: list[AnalysisUnit] = []
     limitations = ["bounded_archive_member_scan", "archive_members_never_executed_or_extracted"]
     total = 0
+    coverage = {"members_discovered": 0, "members_considered": 0, "members_recovered": 0,
+                "members_failed": 0, "members_unsupported": 0, "members_rejected_by_limit": 0}
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            members = archive.infolist()[:128]
-            if len(archive.infolist()) > len(members):
+            all_members = archive.infolist()
+            coverage["members_discovered"] = len(all_members)
+            members = all_members[:128]
+            coverage["members_rejected_by_limit"] += max(0, len(all_members) - len(members))
+            if len(all_members) > len(members):
                 limitations.append("member_limit_reached")
             for info in members:
                 if info.is_dir() or info.file_size > 2 * 1024 * 1024 or info.compress_size == 0 and info.file_size > 0:
+                    coverage["members_rejected_by_limit"] += 1
                     continue
                 if info.file_size / max(1, info.compress_size) > 100:
                     limitations.append(f"compression_ratio_rejected:{info.filename}")
+                    coverage["members_rejected_by_limit"] += 1
                     continue
                 if total + info.file_size > 16 * 1024 * 1024:
                     limitations.append("expanded_byte_limit_reached")
+                    coverage["members_rejected_by_limit"] += 1
                     break
                 member = archive.read(info)
+                coverage["members_considered"] += 1
                 total += len(member)
                 suffix = info.filename.lower().rsplit(".", 1)[-1] if "." in info.filename else ""
                 member_language = {"py": "python", "js": "javascript", "mjs": "javascript",
@@ -261,9 +284,9 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                         unit.artifact_id = f"member:{info.filename}"
                         unit.parent_artifact_id = f"sample:{sha256}"
                         unit.location["member_path"] = info.filename
-                        if any(part in info.filename.lower() for part in ("site-packages/", "node_modules/", "vendor/")):
-                            unit.probable_role = "dependency"
+                        unit.probable_role = _member_role(info.filename)
                     units.extend(child.units)
+                    coverage["members_recovered"] += int(bool(child.units))
                 elif suffix in {"dex", "so", "dll"}:
                     child = _string_index(member, {**sample, "file_type": suffix}, suffix)
                     for unit in child.units:
@@ -274,11 +297,15 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                         unit.parent_artifact_id = f"sample:{sha256}"
                         unit.location["member_path"] = info.filename
                     units.extend(child.units)
+                    coverage["members_recovered"] += int(bool(child.units))
+                else:
+                    coverage["members_unsupported"] += 1
     except (zipfile.BadZipFile, RuntimeError, OSError) as exc:
+        coverage["members_failed"] += 1
         return MaterialIndex(sha256, "archive", "failed",
                              {"text": False, "constants": False, "functions": False,
                               "xrefs": False, "dataflow": False}, [],
-                             [f"archive_parse_failed:{type(exc).__name__}"])
+                             [f"archive_parse_failed:{type(exc).__name__}"], recovery_coverage=coverage)
     if any(str(unit.location.get("member_path", "")).endswith(".dex") for unit in units):
         limitations.append("jadx_missing_dependency" if not shutil.which("jadx") else "jadx_not_enabled")
     return MaterialIndex(sha256, "archive", "partial" if units else "unsupported",
@@ -286,7 +313,8 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                           "constants": bool(units),
                           "functions": any(unit.kind == "source_function" for unit in units),
                           "xrefs": any(bool(unit.references.get("calls")) for unit in units),
-                          "dataflow": any(unit.language == "python" for unit in units)}, units, limitations)
+                          "dataflow": any(unit.language == "python" for unit in units)}, units, limitations,
+                         recovery_coverage=coverage)
 
 
 def build_material_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:

@@ -14,6 +14,7 @@ dist/
 !.env.example
 .streamlit/secrets.toml
 data/
+evaluation/latest_metrics.json
 .codex_tmp_*/
 *.log
 Thumbs.db

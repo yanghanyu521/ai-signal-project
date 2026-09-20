@@ -117,6 +117,15 @@ def test_prompt_exact_digest_compatible_with_bare_hash():
     assert result["score"] == 1 and result["matched_prompts"][0]["method"] == "exact_sha256"
 
 
+def test_prompt_component_never_matches_a_complete_runtime_template():
+    digest = "sha256:" + "d" * 64
+    component = prompt_profile([{"text_hash": digest, "completeness": "static_component"}])
+    complete = prompt_profile([{"text_hash": digest, "completeness": "complete_static_template"}])
+    assert compare_prompts(component, complete)["score"] == 0
+    matched = compare_prompts(component, component)["matched_prompts"][0]
+    assert matched["match_scope"] == "component"
+
+
 def test_simhash_uses_real_hamming_distance_and_does_not_score_random_bits():
     left = prompt_profile([fuzzy(0xffffffffffffffff)])
     close = compare_prompts(left, prompt_profile([fuzzy(0xfffffffffffffffe)]))

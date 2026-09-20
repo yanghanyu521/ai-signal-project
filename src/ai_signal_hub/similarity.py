@@ -192,17 +192,18 @@ def compare_toolchain(left: dict, right: dict) -> dict:
             "matched_facts": sorted(set(left) & set(right)), "left_count": len(left), "right_count": len(right)}
 
 
-def _prompt_pair(left: dict, right: dict) -> tuple[float, str, int | None]:
-    def category(item: dict) -> str:
-        value = item.get("completeness") or "legacy_complete_text"
-        if value in {"complete_static_template", "full_text", "static_template", "legacy_complete_text"}:
-            return "complete"
-        if value in {"static_component", "decoded_static_component", "decoded_constant", "string_constant",
-                     "static_components_only"}:
-            return "component"
-        return "fragment"
+def _prompt_scope(item: dict) -> str:
+    value = item.get("completeness") or "legacy_complete_text"
+    if value in {"complete_static_template", "full_text", "static_template", "legacy_complete_text"}:
+        return "complete_template"
+    if value in {"static_component", "decoded_static_component", "decoded_constant", "string_constant",
+                 "static_components_only"}:
+        return "component"
+    return "fragment"
 
-    if category(left) != category(right):
+
+def _prompt_pair(left: dict, right: dict) -> tuple[float, str, int | None]:
+    if _prompt_scope(left) != _prompt_scope(right):
         return 0.0, "different_completeness", None
     if left["exact"] and left["exact"] == right["exact"]:
         return 1.0, "exact_sha256", None
@@ -228,7 +229,8 @@ def compare_prompts(left: dict, right: dict) -> dict:
             score, method, distance = _prompt_pair(a[i], b[j])
             if score:
                 matches.append({"left_index": int(i), "right_index": int(j), "score": score,
-                                "method": method, "hamming_distance": distance})
+                                "method": method, "hamming_distance": distance,
+                                "match_scope": _prompt_scope(a[i])})
     if content is None and structure is None:
         return _unavailable("missing_comparable_prompt_evidence", left_count=len(a), right_count=len(b))
     if content is not None:

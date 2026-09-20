@@ -36,7 +36,9 @@ class StaticQueryService:
                 return {"status": "rejected", "reason": "unit_is_not_resource"}
             return {"status": "ok", "units": [self._bounded(unit)]}
         key = {"get_callers": "callers", "get_callees": "calls", "get_definitions": "definitions"}.get(name)
-        ids = unit.references.get(key, []) if key else sum(unit.references.values(), [])
+        ids = (unit.references.get(key, []) if key else
+               sum((values for ref_key, values in unit.references.items()
+                    if not ref_key.startswith("unresolved")), []))
         found = [self.units[item] for item in ids if item in self.units][:self.max_results]
         return {"status": "ok", "units": [self._bounded(item) for item in found],
                 "unresolved": [item for item in ids if item not in self.units][:self.max_results]}

@@ -8,7 +8,9 @@
 
 当前版本提供 FastAPI、SQLite 本地知识库、联合分析案例、历史结果导入、样本自动聚类关联、统计与 Markdown 报告生成，以及 Streamlit 测试界面。
 
-v0.6.0：样本材料默认使用与报告抽取相同的 DeepSeek V4 服务（密钥依次读取 `SAMPLE_LLM_API_KEY`、`DEEPSEEK_API_KEY`、`cc-api`）；取消单次分析的总 token 预算，按模型上下文上限批量覆盖已恢复材料。APK/DEX 与 PE/ELF 分别通过网络隔离的 JADX、Ghidra Docker 容器恢复 Java 方法、函数伪代码、字符串及导入表。配置和真实无害夹具验证见 [样本 DeepSeek 与 Docker 静态工具接入说明](docs/18_样本DeepSeek与Docker静态工具接入_20260917.md)。
+v0.7.0：样本侧证据链改为“候选发现—静态关系验证—主体角色验证—归因门禁”。仅位置命中的 LLM 候选、依赖/示例代码和分析器定向指令都不能直接改变模型归因；Python 工具链与 Prompt 共用作用域感知静态图，语义分析支持多轮受控查询，JADX/Ghidra 关系落到可查询的分析单元 ID。新增 PromptComposition、三层覆盖率、外发策略、A—K 无害评测集与 Python 3.11/3.12 CI。详见 [v0.7 证据验证架构](docs/19_静态AI信号证据验证架构_v0.7.md) 和 [评测说明](docs/20_AI信号静态提取评测说明.md)。
+
+v0.6.0：样本侧接入 DeepSeek V4 与 Docker 静态恢复；v0.7 起远端外发不再默认开启，历史配置说明以 v0.7 文档为准。APK/DEX 与 PE/ELF 分别通过网络隔离的 JADX、Ghidra Docker 容器恢复 Java 方法、函数伪代码、字符串及导入表。
 
 v0.5.0：按静态分析审查意见修复型号截断、SDK/模型厂商混淆、最终分类不同步、归档内层漏扫、Prompt比较资格及证据偏移等问题；新增统一静态材料索引、受限上下文查询、独立样本侧LLM链路、分析运行历史和显式重新分析API。整改范围和未验收项见 [静态分析整改落实说明](docs/17_静态分析审查意见整改落实_20260917.md)。
 
@@ -113,7 +115,7 @@ FruitShell静态规则已补齐：PowerShell多线索识别、代码词法统计
 - `data/quarantine` 中的文件使用哈希名和 `.sample` 后缀保存；不要双击、预览或交给解释器。
 - 原始样本和运行数据已在 `.gitignore` 中排除。
 - 当前是本地单用户测试版，API 默认只监听 `127.0.0.1`。对外部署前必须补充认证、权限、反向代理、TLS、审计日志和独立分析沙箱。
-- 样本侧大模型默认启用并复用报告侧 DeepSeek V4 配置：密钥优先级为 `SAMPLE_LLM_API_KEY` → `DEEPSEEK_API_KEY` → `cc-api`，样本专用变量只作为覆盖项。样本源码、反编译代码和静态字符串会发送至配置的模型服务；生产环境应确认数据外发策略，也可用 `SAMPLE_LLM_ENABLED=false` 关闭。
+- 样本侧大模型功能默认启用并复用报告侧 DeepSeek V4 配置，但远端外发默认禁止。密钥优先级为 `SAMPLE_LLM_API_KEY` → `DEEPSEEK_API_KEY` → `cc-api`；只有同时设置 `SAMPLE_LLM_ALLOW_REMOTE=true` 与 `SAMPLE_LLM_TRANSFER_POLICY=remote_redacted|remote_full` 才会发送样本静态材料。策略阻止时仍完成本地确定性分析并记录 `llm_transfer.destination=blocked`。
 - 不设置单次分析总 token 预算；`SAMPLE_LLM_MAX_INPUT_TOKENS` 只控制每次请求的上下文大小，材料会自动分批。`SAMPLE_LLM_MAX_REQUESTS`（默认128）和超时仍作为故障/失控保护，触发后明确返回 `partial` 与未处理单元清单。
 - JADX/Ghidra 容器运行时固定关闭网络、只读挂载样本、删除 Linux capabilities、限制 CPU/内存/PID，并在超时后强制回收；这降低风险但不能替代专用隔离分析主机。
 

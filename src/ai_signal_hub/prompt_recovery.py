@@ -15,8 +15,8 @@ import re
 import struct
 import zipfile
 import zlib
-from collections import defaultdict
 
+from aisig.python_graph import PythonStaticGraph
 from .sample_rules import _simhash
 
 
@@ -92,156 +92,14 @@ def _b64(value):
         return None
 
 
-class PythonInputs:
+class PythonInputs(PythonStaticGraph):
     """Conservative static provenance graph; never evaluates Python calls.
 
     Loops/branches are unions of possible origins. Runtime input and opaque
     calls are stopping points, so menu prompts and file paths aren't model input.
     """
-    def __init__(self, text):
-        self.text = text
-        self.tree = ast.parse(text)
-        self.nodes = list(ast.walk(self.tree))
-        if len(self.nodes) > MAX_NODES:
-            raise ValueError('source_ast_node_limit')
-        self.scope = {}
-        self.locals = defaultdict(set)
-        self.functions = {}
-        self.edges = defaultdict(set)
-        self.roots = []
-        self.external = set()
-        self.aliases = set()
-        self.clients = set()
-        self._scopes(self.tree, '<module>')
-        for n in self.nodes:
-            if isinstance(n, ast.Import):
-                for a in n.names:
-                    if a.name.split('.')[0] in {'openai', 'anthropic', 'ollama', 'google'}:
-                        self.aliases.add(a.asname or a.name.split('.')[0])
-            elif isinstance(n, ast.ImportFrom) and (n.module or '').split('.')[0] in {'openai', 'anthropic', 'ollama', 'google'}:
-                self.aliases.update(a.asname or a.name for a in n.names)
-        for n in self.nodes:
-            if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call):
-                name = ast.unparse(n.value.func)
-                if name.split('.')[0] in self.aliases:
-                    self.clients.update(t.id for t in n.targets if isinstance(t, ast.Name))
-        for n in self.nodes:
-            self._build(n)
-
-    def _scopes(self, n, scope):
-        self.scope[id(n)] = scope
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            inner = scope + '/' + n.name
-            self.functions[(scope, n.name)] = (inner, n)
-            for arg in (*n.args.posonlyargs, *n.args.args, *n.args.kwonlyargs):
-                self.locals[inner].add(arg.arg)
-            for child in ast.iter_child_nodes(n):
-                self._scopes(child, inner)
-            return
-        if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store):
-            self.locals[scope].add(n.id)
-        for child in ast.iter_child_nodes(n):
-            self._scopes(child, scope)
-
-    def symbol(self, scope, name):
-        local = scope
-        while name not in self.locals[local] and local != '<module>':
-            local = local.rsplit('/', 1)[0]
-        return ('var', local, name)
-
-    def function(self, n):
-        if not isinstance(n.func, ast.Name):
-            return None
-        scope = self.scope[id(n)]
-        while True:
-            match = self.functions.get((scope, n.func.id))
-            if match:
-                return match
-            if scope == '<module>':
-                return None
-            scope = scope.rsplit('/', 1)[0]
-
-    def _link(self, left, right):
-        self.edges[left].add(id(right) if isinstance(right, ast.AST) else right)
-
-    def _build(self, n):
-        scope, key = self.scope[id(n)], id(n)
-        if isinstance(n, ast.Name):
-            self._link(key, self.symbol(scope, n.id))
-        elif isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-            targets = n.targets if isinstance(n, ast.Assign) else [n.target]
-            for t in targets:
-                if isinstance(t, ast.Name) and n.value is not None:
-                    self._link(self.symbol(scope, t.id), n.value)
-        elif isinstance(n, (ast.For, ast.comprehension)):
-            for t in ast.walk(n.target):
-                if isinstance(t, ast.Name):
-                    self._link(self.symbol(scope, t.id), n.iter)
-        elif isinstance(n, ast.Return) and n.value:
-            self._link(('return', scope), n.value)
-        elif isinstance(n, ast.Dict):
-            pairs = [(k.value, v) for k, v in zip(n.keys, n.values) if isinstance(k, ast.Constant)]
-            keys = {k for k, _ in pairs}
-            chosen = {'content'} if 'role' in keys and 'content' in keys else ({'messages'} if 'messages' in keys else {'prompt', 'inputs', 'contents', 'text'})
-            for k, v in pairs:
-                if k in chosen:
-                    self._link(key, v)
-        elif isinstance(n, (ast.List, ast.Tuple, ast.Set)):
-            for child in n.elts:
-                self._link(key, child)
-        elif isinstance(n, (ast.BinOp, ast.JoinedStr, ast.FormattedValue, ast.IfExp)):
-            for child in ast.iter_child_nodes(n):
-                self._link(key, child)
-        elif isinstance(n, ast.Subscript):
-            self._link(key, n.value)
-        elif isinstance(n, ast.Call):
-            name = ast.unparse(n.func)
-            fn = self.function(n)
-            if fn:
-                inner, definition = fn
-                params = [a.arg for a in (*definition.args.posonlyargs, *definition.args.args)]
-                for param, arg in zip(params, n.args):
-                    self._link(('var', inner, param), arg)
-                for kw in n.keywords:
-                    if kw.arg:
-                        self._link(('var', inner, kw.arg), kw.value)
-                self._link(key, ('return', inner))
-            elif isinstance(n.func, ast.Attribute) and n.func.attr in {'append', 'extend'} and isinstance(n.func.value, ast.Name):
-                for arg in n.args:
-                    self._link(self.symbol(scope, n.func.value.id), arg)
-            elif name.endswith(('b64decode', '.decode', '.format', '.join')):
-                if isinstance(n.func, ast.Attribute):
-                    self._link(key, n.func.value)
-                if not name.endswith('.decode'):
-                    for arg in n.args:
-                        self._link(key, arg)
-                    for kw in n.keywords:
-                        self._link(key, kw.value)
-            else:
-                self.external.add(key)
-            trusted = name.split('.')[0] in self.aliases | self.clients
-            if trusted and name.endswith(('.create', '.generate_content', '.chat', '.generate', '.complete')):
-                for kw in n.keywords:
-                    if kw.arg in {'messages', 'prompt', 'contents', 'input'}:
-                        self.roots.append((id(kw.value), n.lineno, name))
-                if name.endswith(('.generate_content', '.complete')) and n.args:
-                    self.roots.append((id(n.args[0]), n.lineno, name))
-            elif name.endswith('.post'):
-                # Deferred until the graph is complete: only a known model URL
-                # qualifies a generic HTTP JSON body as a model request.
-                pass
-
-    def reachable(self, roots):
-        seen, todo = set(), list(roots)
-        while todo:
-            key = todo.pop()
-            if key in seen:
-                continue
-            seen.add(key)
-            todo.extend(self.edges.get(key, ()))
-        return seen
-
     def candidates(self, raw, codec='utf-8', bom=0):
+        roots = list(self.model_input_roots)
         for n in self.nodes:
             if isinstance(n, ast.Call) and ast.unparse(n.func).endswith('.post'):
                 url = n.args[0] if n.args else next((kw.value for kw in n.keywords if kw.arg == 'url'), None)
@@ -249,8 +107,8 @@ class PythonInputs:
                 if any(id(c) in reach and isinstance(c, ast.Constant) and isinstance(c.value, str) and ENDPOINT.search(c.value) for c in self.nodes):
                     for kw in n.keywords:
                         if kw.arg == 'json':
-                            self.roots.append((id(kw.value), n.lineno, ast.unparse(n.func)))
-        reached = self.reachable(r[0] for r in self.roots)
+                            roots.append((id(kw.value), n.lineno, ast.unparse(n.func)))
+        reached = self.reachable(r[0] for r in roots)
         decode_sources = set()
         for call in self.nodes:
             if isinstance(call, ast.Call) and ast.unparse(call.func) == 'base64.b64decode' and call.args and id(call) in reached:
@@ -280,9 +138,13 @@ class PythonInputs:
             item = _candidate(text, origin, method='python_static_input', bound=True)
             if transform == 'base64_utf8':
                 item['completeness'] = 'decoded_static_component'
-            item['call_sites'] = [{'line': line, 'callee': name} for root, line, name in self.roots if id(n) in self.reachable([root])]
+            item['call_sites'] = [{'line': line, 'callee': name} for root, line, name in roots if id(n) in self.reachable([root])]
+            item['verification'] = {'location': 'verified', 'relation': 'verified', 'role': 'verified'}
+            item['role'] = 'application'
+            item['attribution_eligible'] = True
+            item['call_binding'] = 'relation_verified'
             result.append(item)
-        return result, {'status': 'scanned', 'method': 'scope_aware_dependency_union', 'call_count': len(self.roots),
+        return result, {'status': 'scanned', 'method': 'scope_aware_dependency_union', 'call_count': len(roots),
                         'runtime_values': 'not_evaluated', 'completeness': 'static_components_only',
                         'opaque_calls_reached': len(reached & self.external)}
 
