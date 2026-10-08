@@ -85,18 +85,21 @@ class LegacyAdapters:
                 raise ValueError("样本超过统一平台静态规则输入上限")
             enhanced = apply_sample_rules(result, data)
             enhanced = recover_prompt_features(enhanced, data)
-            # Older analyser results can still enter through the adapter.
-            # Populate the complete v0.4 contract before writing artifacts.
-            if "code_generation_signals" not in enhanced.setdefault("features", {}):
-                from .stylometry.fingerprint import build_code_generation_signals
-                enhanced["features"]["code_generation_signals"] = build_code_generation_signals(
-                    None, (enhanced.get("sample") or {}).get("language"),
-                    (enhanced.get("sample") or {}).get("recoverability"),
-                    str((enhanced.get("sample") or {}).get("sha256") or ""),
-                )
+            # Language recovery (notably extensionless PowerShell) can happen
+            # in sample rules after the base analyzer created its fingerprint.
+            # Rebuild from the original bytes using the final metadata only;
+            # binaries and recovered pseudo-source remain ineligible.
+            from aisig.string_extract import source_text
+            from .stylometry.fingerprint import build_code_generation_signals
+            metadata = enhanced.get("sample") or {}
+            language = metadata.get("language")
+            source, _ = source_text(data, language) if metadata.get("recoverability") == "original_source" else (None, None)
+            enhanced.setdefault("features", {})["code_generation_signals"] = build_code_generation_signals(
+                source, language, metadata.get("recoverability"), str(metadata.get("sha256") or ""),
+            )
             enhanced["features"].setdefault("facts", [])
-            # A missing decompiler must not prevent reading model markers from
-            # the very same CArchive script bytes used for prompt recovery.
+            # Container and string scanning can read model markers without
+            # a decompiler; natural-language prompts do not imply tool use.
             # Do not infer a toolchain from the natural-language prompt itself.
             self._recover_packaged_toolchain(enhanced, data)
             self._run_semantic_static_analysis(enhanced, data, artifact_dir)

@@ -153,6 +153,45 @@ def test_binary_is_strings_only_and_never_produces_code_fingerprint(tmp_path: Pa
     assert result["schema_version"] == "0.4"
 
 
+def test_extensionless_powershell_promoted_by_rules_gets_final_source_fingerprint(tmp_path: Path):
+    project = Path(__file__).resolve().parents[1]
+    source = '''# benign static fixture
+$apple = "hello"
+$banana = "world"
+$cherry = $apple -replace 'h', 'H'
+$date = New-Object System.Text.StringBuilder
+Write-Output $cherry
+'''
+    sample = tmp_path / "extensionless"
+    sample.write_text(source, encoding="utf-8")
+    settings = Settings(project_root=project, workspace_root=project.parent,
+                        data_dir=tmp_path / "data", sample_llm_enabled=False,
+                        static_tools_docker_enabled=False)
+    result = LegacyAdapters(settings).analyze_sample(sample, tmp_path / "out")
+    generation = result["features"]["code_generation_signals"]
+    assert result["sample"]["language"] == "powershell"
+    assert generation["fingerprint"]["language"] == "powershell"
+    assert generation["fingerprint"]["source_kind"] == "original_source"
+
+
+def test_pyinstaller_decompiler_is_disabled_even_with_legacy_config(tmp_path: Path, monkeypatch):
+    import aisig.cli
+    import aisig.pyinstaller_recovery
+
+    project = Path(__file__).resolve().parents[1]
+    sample = tmp_path / "fixture.exe"
+    sample.write_bytes(b"MZ\0\0PyInstaller\0gpt-4o\0")
+    monkeypatch.setattr(aisig.cli, "is_pyinstaller", lambda *_: True)
+    monkeypatch.setattr(aisig.pyinstaller_recovery, "recover_and_analyze_pyinstaller",
+                        lambda *_: pytest.fail("pycdc must not run in v0.8"))
+    out = tmp_path / "out"
+    aisig.cli.analyze(sample, out,
+                      project / "components/ai_signal_demo/configs/limits.yaml",
+                      project / "components/ai_signal_demo/rules/llm_rules.yaml")
+    result = json.loads((out / "result.json").read_text(encoding="utf-8"))
+    assert result["features"]["recovery"]["pyinstaller"]["status"] == "disabled_v08_binary_strings_only"
+
+
 def test_identical_source_has_identical_deterministic_fingerprint():
     assert signals()["fingerprint"] == signals()["fingerprint"]
 

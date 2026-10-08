@@ -110,12 +110,14 @@ FruitShell静态规则已补齐：PowerShell多线索识别、代码词法统计
 
 ## 安全提示
 
-- 平台绝不执行、导入、调试或仿真恶意样本；JADX/Ghidra 仅做静态恢复。启用样本侧 DeepSeek 后会向模型服务发送源码、反编译代码和提取出的静态材料，但不会把完整可执行文件编码后作为模型输入。
+- 平台绝不执行、导入、调试或仿真恶意样本。v0.8 样本路径不运行 JADX/Ghidra/pycdc 反编译；启用样本侧 DeepSeek 后，只按显式外发策略发送源码或从二进制恢复的静态字符串/容器材料，不把完整可执行文件编码后作为模型输入。
 - `data/quarantine` 中的文件使用哈希名和 `.sample` 后缀保存；不要双击、预览或交给解释器。
 - 原始样本和运行数据已在 `.gitignore` 中排除。
 - 当前是本地单用户测试版，API 默认只监听 `127.0.0.1`。对外部署前必须补充认证、权限、反向代理、TLS、审计日志和独立分析沙箱。
 - 样本侧大模型功能默认启用并复用报告侧 DeepSeek V4 配置，但远端外发默认禁止。密钥优先级为 `SAMPLE_LLM_API_KEY` → `DEEPSEEK_API_KEY` → `cc-api`；只有同时设置 `SAMPLE_LLM_ALLOW_REMOTE=true` 与 `SAMPLE_LLM_TRANSFER_POLICY=remote_redacted|remote_full` 才会发送样本静态材料。策略阻止时仍完成本地确定性分析并记录 `llm_transfer.destination=blocked`。
 - 不设置单次分析总 token 预算；`SAMPLE_LLM_MAX_INPUT_TOKENS` 只控制每次请求的上下文大小，材料会自动分批。`SAMPLE_LLM_MAX_REQUESTS`（默认128）和超时仍作为故障/失控保护，触发后明确返回 `partial` 与未处理单元清单。
-- JADX/Ghidra 容器运行时固定关闭网络、只读挂载样本、删除 Linux capabilities、限制 CPU/内存/PID，并在超时后强制回收；这降低风险但不能替代专用隔离分析主机。
+- 仓库保留旧版 JADX/Ghidra 隔离镜像与脚本供历史结果复核；v0.8 默认分析路径不调用它们。若未来重新启用深度恢复，仍需专用隔离分析主机与独立安全审查。
+
+45 样本的 v0.8 重新分析和旧规则基线对比见[分组报告](docs/24_v08_45样本重新分析与规则基线对比_20261008.md)；完整逐样本产物保存在本机已忽略的 `data/evaluations/20261008_all45_v08_full/`，不随公开仓库分发。
 
 详细需求、架构、v1/v2 意见处理、v0.3 报告大模型改造和验收范围见 `docs/`；报告抽取当前行为以 `07_报告纯大模型抽取说明.md` 为准。
