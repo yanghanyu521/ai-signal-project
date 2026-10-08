@@ -8,6 +8,8 @@
 
 当前版本提供 FastAPI、SQLite 本地知识库、联合分析案例、历史结果导入、样本自动聚类关联、统计与 Markdown 报告生成，以及 Streamlit 测试界面。
 
+v0.8.0：样本侧改为原始源码增强分析与二进制字符串分析双路径；新增独立、可重复的文件/局部代码文体指纹及只读文体近邻检索。v0.8 不调用 Ghidra/JADX，不凭二进制字符串产生代码文体指纹，也不输出未经校准的生成模型来源判断。报告侧保持原流程。详见 [v0.8 整改说明](docs/23_v0.8双路径与文体指纹整改说明.md)。
+
 v0.7.0：样本侧证据链改为“候选发现—静态关系验证—主体角色验证—归因门禁”。仅位置命中的 LLM 候选、依赖/示例代码和分析器定向指令都不能直接改变模型归因；Python 工具链与 Prompt 共用作用域感知静态图，语义分析支持多轮受控查询，JADX/Ghidra 关系落到可查询的分析单元 ID。新增 PromptComposition、三层覆盖率、外发策略、A—K 无害评测集与 Python 3.11/3.12 CI。详见 [v0.7 证据验证架构](docs/19_静态AI信号证据验证架构_v0.7.md) 和 [评测说明](docs/20_AI信号静态提取评测说明.md)。
 
 v0.6.0：样本侧接入 DeepSeek V4 与 Docker 静态恢复；v0.7 起远端外发不再默认开启，历史配置说明以 v0.7 文档为准。APK/DEX 与 PE/ELF 分别通过网络隔离的 JADX、Ghidra Docker 容器恢复 Java 方法、函数伪代码、字符串及导入表。
@@ -24,7 +26,7 @@ v0.3.0：新上传报告默认直接由大模型提取，已移除报告规则�
 
 ## 项目组成与运行依赖
 
-项目现已自包含，样本静态分析器和报告解析组件的源码均已整合进同一仓库，不再依赖本机同级目录。基础运行需要 Python 3.11 或更高版本及 `pyproject.toml` 中声明的 Python 依赖；APK/DEX、PE/ELF 深度静态恢复另需 Docker Desktop 或兼容 Docker Engine。
+项目现已自包含，样本静态分析器和报告解析组件的源码均已整合进同一仓库，不再依赖本机同级目录。基础运行需要 Python 3.11 或更高版本及 `pyproject.toml` 中声明的 Python 依赖。仓库仍保存旧版 Docker 恢复脚本，但 v0.8 样本分析路径不需要 Docker。
 
 ```text
 ai-signal-project/
@@ -51,9 +53,6 @@ git clone git@github.com:yanghanyu521/ai-signal-project.git
 Set-Location '.\ai-signal-project'
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e '.[dev]'
-
-# 首次使用 APK/DEX 或 PE/ELF 深度静态恢复时构建镜像
-.\scripts\build_static_tool_images.ps1
 
 .\.venv\Scripts\python.exe -m ai_signal_hub.main
 ```
@@ -111,12 +110,14 @@ FruitShell静态规则已补齐：PowerShell多线索识别、代码词法统计
 
 ## 安全提示
 
-- 平台绝不执行、导入、调试或仿真恶意样本；JADX/Ghidra 仅做静态恢复。启用样本侧 DeepSeek 后会向模型服务发送源码、反编译代码和提取出的静态材料，但不会把完整可执行文件编码后作为模型输入。
+- 平台绝不执行、导入、调试或仿真恶意样本。v0.8 样本路径不运行 JADX/Ghidra/pycdc 反编译；启用样本侧 DeepSeek 后，只按显式外发策略发送源码或从二进制恢复的静态字符串/容器材料，不把完整可执行文件编码后作为模型输入。
 - `data/quarantine` 中的文件使用哈希名和 `.sample` 后缀保存；不要双击、预览或交给解释器。
 - 原始样本和运行数据已在 `.gitignore` 中排除。
 - 当前是本地单用户测试版，API 默认只监听 `127.0.0.1`。对外部署前必须补充认证、权限、反向代理、TLS、审计日志和独立分析沙箱。
 - 样本侧大模型功能默认启用并复用报告侧 DeepSeek V4 配置，但远端外发默认禁止。密钥优先级为 `SAMPLE_LLM_API_KEY` → `DEEPSEEK_API_KEY` → `cc-api`；只有同时设置 `SAMPLE_LLM_ALLOW_REMOTE=true` 与 `SAMPLE_LLM_TRANSFER_POLICY=remote_redacted|remote_full` 才会发送样本静态材料。策略阻止时仍完成本地确定性分析并记录 `llm_transfer.destination=blocked`。
 - 不设置单次分析总 token 预算；`SAMPLE_LLM_MAX_INPUT_TOKENS` 只控制每次请求的上下文大小，材料会自动分批。`SAMPLE_LLM_MAX_REQUESTS`（默认128）和超时仍作为故障/失控保护，触发后明确返回 `partial` 与未处理单元清单。
-- JADX/Ghidra 容器运行时固定关闭网络、只读挂载样本、删除 Linux capabilities、限制 CPU/内存/PID，并在超时后强制回收；这降低风险但不能替代专用隔离分析主机。
+- 仓库保留旧版 JADX/Ghidra 隔离镜像与脚本供历史结果复核；v0.8 默认分析路径不调用它们。若未来重新启用深度恢复，仍需专用隔离分析主机与独立安全审查。
+
+45 样本的 v0.8 重新分析和旧规则基线对比见[分组报告](docs/24_v08_45样本重新分析与规则基线对比_20261008.md)；完整逐样本产物保存在本机已忽略的 `data/evaluations/20261008_all45_v08_full/`，不随公开仓库分发。
 
 详细需求、架构、v1/v2 意见处理、v0.3 报告大模型改造和验收范围见 `docs/`；报告抽取当前行为以 `07_报告纯大模型抽取说明.md` 为准。

@@ -110,7 +110,8 @@ def test_ineligible_prompt_hash_is_excluded_from_similarity() -> None:
     }
     profile = sample_profile(result)["prompt"]
     assert profile["records"] == [{"exact": "sha256:" + "b" * 64, "fuzzy": None,
-                                    "completeness": "complete_static_template"}]
+                                    "completeness": "complete_static_template",
+                                    "category": "program_prompt"}]
     assert profile["excluded_ineligible"] == 1
 
 

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yanghanyu521/ai-signal-project/evaluation/reference_model_record.schema.json",
+  "title": "Reference model generation record v0.8",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_id", "dataset_version", "generator", "language", "task_id", "prompt_strategy", "original_prompt", "original_output", "human_edited", "generated_at", "style_fingerprint", "split"],
+  "properties": {
+    "record_id": {"type": "string", "minLength": 1},
+    "dataset_version": {"type": "string", "minLength": 1},
+    "generator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["provider", "family", "model", "version"],
+      "properties": {
+        "provider": {"type": "string", "minLength": 1},
+        "family": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "language": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "source_project_id": {"type": ["string", "null"]},
+    "prompt_strategy": {"type": "string", "minLength": 1},
+    "sampling_parameters": {"type": "object"},
+    "original_prompt": {"type": "string"},
+    "original_output": {"type": "string"},
+    "human_edited": {"type": "boolean"},
+    "postprocessing": {"type": "array", "items": {"type": "string"}},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "style_fingerprint": {"type": "object"},
+    "split": {"enum": ["train", "validation", "test", "unknown_model_test"]},
+    "provenance": {"type": "object"}
+  }
+}

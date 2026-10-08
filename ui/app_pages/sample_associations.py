@@ -24,8 +24,39 @@ if not samples:
 
 options = {f"{item.get('source_case') or '未标注'} · {item.get('model_name') or 'unknown'} · {item['sha256'][:12]}…": item["sha256"] for item in samples}
 selected = st.selectbox("选择样本", list(options))
+view = st.segmented_control("比较视图", ["综合 AI 信号", "代码文体"], default="综合 AI 信号")
 include_unmatched = st.checkbox("显示零匹配及不可比较的样本对", value=False,
                                 help="默认只显示正分候选。开启后可查看缺失证据、跨语言等原因；聚类距离阈值不控制此列表。")
+
+if view == "代码文体":
+    try:
+        style_result = get_json(
+            api_base_url(), f"/api/v1/samples/{options[selected]}/style-neighbors",
+            (("limit", 100), ("include_unmatched", str(include_unmatched).lower())),
+        )
+    except ApiError as exc:
+        st.error(str(exc))
+        st.stop()
+    st.caption("仅比较原始源码的词法、AST和注释文体；短代码、二进制和旧指标版本会显示不可比较。")
+    style_rows = [{"样本SHA-256": item["related_sha256"], "家族": item.get("source_case"),
+                   "文体相似度": item.get("code_style_similarity"),
+                   "状态": item["comparison"].get("status"),
+                   "原因": item["comparison"].get("reason") or "—",
+                   "近重复": item["comparison"].get("near_duplicate_warning", False)}
+                  for item in style_result.get("related_samples") or []]
+    if style_rows:
+        st.dataframe(pd.DataFrame(style_rows), hide_index=True,
+                     column_config={"文体相似度": st.column_config.NumberColumn("文体相似度", format="percent")})
+        style_pairs = {item["related_sha256"]: item for item in style_result["related_samples"]}
+        focus = st.selectbox("查看文体指标依据", list(style_pairs))
+        detail = style_pairs[focus]["comparison"]
+        st.write("实际共享指标：", detail.get("shared_indicators") or "无")
+        st.write("缺失指标：", detail.get("missing_features") or "无")
+        st.write("结构相同：", detail.get("same_structure", False))
+    else:
+        st.info("当前没有可比较的代码文体近邻。")
+    st.caption(style_result.get("interpretation") or "")
+    st.stop()
 
 try:
     result = get_json(

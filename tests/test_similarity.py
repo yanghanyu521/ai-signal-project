@@ -106,8 +106,8 @@ def test_tool_facts_are_deduplicated_and_use_weighted_union():
 
 def test_tool_endpoint_drops_credentials_query_and_fragment():
     data = {"features": {"toolchain": {"evidence": [{"type": "endpoint",
-            "value": "https://user:secret@example.test/v1/chat?key=secret#private"}]}}}
-    assert sample_profile(data)["toolchain"] == {"endpoint:example.test/v1/chat": 1.5}
+            "value": "https://user:secret@api.openai.com/v1/chat?key=secret#private"}]}}}
+    assert sample_profile(data)["toolchain"] == {"endpoint:api.openai.com/v1/chat": 1.5}
 
 
 def test_prompt_exact_digest_compatible_with_bare_hash():

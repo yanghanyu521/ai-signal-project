@@ -4,7 +4,6 @@ import ast
 import hashlib
 import io
 import re
-import shutil
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any
@@ -228,11 +227,8 @@ def _string_index(data: bytes, sample: dict[str, Any], language: str = "binary")
             parse_status="parsed", limitations=["no_call_relation_from_string_scan"],
         )
         units.append(unit)
-    file_type = str(sample.get("file_type") or "").lower()
-    native = data.startswith((b"MZ", b"\x7fELF")) or "pe32" in file_type or "elf" in file_type
-    limitations = ["binary_strings_only", "no_decompiler_material"]
-    if native:
-        limitations.append("ghidra_missing_dependency" if not shutil.which("analyzeHeadless") else "ghidra_not_enabled")
+    limitations = ["binary_strings_only", "no_static_call_relation_from_strings",
+                   "decompilation_disabled_v08"]
     return MaterialIndex(sha256, language, "partial" if units else "unsupported",
                          {"text": False, "constants": bool(units), "functions": False,
                           "xrefs": False, "dataflow": False}, units, limitations)
@@ -249,7 +245,14 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             all_members = archive.infolist()
             coverage["members_discovered"] = len(all_members)
-            members = all_members[:128]
+            # Prefer executable and readable content over bundled artwork; still
+            # retain original member positions and bounded decompression limits.
+            prioritized = sorted(all_members, key=lambda info: (
+                0 if info.filename.lower().endswith((".dex", ".py", ".js", ".mjs", ".ps1")) else
+                1 if info.filename.lower().endswith((".xml", ".json", ".txt", ".arsc")) else 2,
+                info.filename,
+            ))
+            members = prioritized[:128]
             coverage["members_rejected_by_limit"] += max(0, len(all_members) - len(members))
             if len(all_members) > len(members):
                 limitations.append("member_limit_reached")
@@ -287,7 +290,7 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                         unit.probable_role = _member_role(info.filename)
                     units.extend(child.units)
                     coverage["members_recovered"] += int(bool(child.units))
-                elif suffix in {"dex", "so", "dll"}:
+                elif suffix in {"dex", "so", "dll", "arsc", "xml", "json", "txt"}:
                     child = _string_index(member, {**sample, "file_type": suffix}, suffix)
                     for unit in child.units:
                         unit.unit_id = "unit:" + hashlib.sha256(
@@ -306,8 +309,7 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                              {"text": False, "constants": False, "functions": False,
                               "xrefs": False, "dataflow": False}, [],
                              [f"archive_parse_failed:{type(exc).__name__}"], recovery_coverage=coverage)
-    if any(str(unit.location.get("member_path", "")).endswith(".dex") for unit in units):
-        limitations.append("jadx_missing_dependency" if not shutil.which("jadx") else "jadx_not_enabled")
+    limitations.append("decompilation_disabled_v08")
     return MaterialIndex(sha256, "archive", "partial" if units else "unsupported",
                          {"text": any(unit.representation == "original_source" for unit in units),
                           "constants": bool(units),
