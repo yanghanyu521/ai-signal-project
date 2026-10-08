@@ -33,6 +33,7 @@ class PythonStaticGraph:
         self.locals: dict[str, set[str]] = defaultdict(set)
         self.functions: dict[tuple[str, str], tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]] = {}
         self.edges: dict[Hashable, set[Hashable]] = defaultdict(set)
+        self.assignments: dict[Hashable, list[tuple[int, ast.AST]]] = defaultdict(list)
         self.external: set[int] = set()
         self.aliases: dict[str, str] = {}
         self.client_info: dict[Hashable, dict[str, Any]] = {}
@@ -110,7 +111,9 @@ class PythonStaticGraph:
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for target in targets:
                 if isinstance(target, ast.Name) and node.value is not None:
-                    self._link(self.symbol(scope, target.id), node.value)
+                    symbol = self.symbol(scope, target.id)
+                    self._link(symbol, node.value)
+                    self.assignments[symbol].append((getattr(node, "lineno", 0), node.value))
         elif isinstance(node, (ast.For, ast.comprehension)):
             for target in ast.walk(node.target):
                 if isinstance(target, ast.Name):
@@ -237,7 +240,17 @@ class PythonStaticGraph:
         if isinstance(node, ast.Constant) and isinstance(node.value, (str, int, float, bool, type(None))):
             return {node.value}
         if isinstance(node, ast.Name):
-            return self._values(self.symbol(self.scope[id(node)], node.id), seen, depth - 1)
+            symbol = self.symbol(self.scope[id(node)], node.id)
+            definitions = self.assignments.get(symbol, [])
+            if definitions:
+                previous = [value for line, value in definitions if line <= node.lineno]
+                if not previous:
+                    return set()
+                values: set[Any] = set()
+                for value in previous:
+                    values.update(self._values(id(value), seen, depth - 1))
+                return values
+            return self._values(symbol, seen, depth - 1)
         if isinstance(node, ast.FormattedValue):
             return self._values(id(node.value), seen, depth - 1)
         if isinstance(node, ast.IfExp):

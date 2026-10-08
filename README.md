@@ -8,6 +8,8 @@
 
 当前版本提供 FastAPI、SQLite 本地知识库、联合分析案例、历史结果导入、样本自动聚类关联、统计与 Markdown 报告生成，以及 Streamlit 测试界面。
 
+v0.8.0：样本侧改为原始源码增强分析与二进制字符串分析双路径；新增独立、可重复的文件/局部代码文体指纹及只读文体近邻检索。v0.8 不调用 Ghidra/JADX，不凭二进制字符串产生代码文体指纹，也不输出未经校准的生成模型来源判断。报告侧保持原流程。详见 [v0.8 整改说明](docs/23_v0.8双路径与文体指纹整改说明.md)。
+
 v0.7.0：样本侧证据链改为“候选发现—静态关系验证—主体角色验证—归因门禁”。仅位置命中的 LLM 候选、依赖/示例代码和分析器定向指令都不能直接改变模型归因；Python 工具链与 Prompt 共用作用域感知静态图，语义分析支持多轮受控查询，JADX/Ghidra 关系落到可查询的分析单元 ID。新增 PromptComposition、三层覆盖率、外发策略、A—K 无害评测集与 Python 3.11/3.12 CI。详见 [v0.7 证据验证架构](docs/19_静态AI信号证据验证架构_v0.7.md) 和 [评测说明](docs/20_AI信号静态提取评测说明.md)。
 
 v0.6.0：样本侧接入 DeepSeek V4 与 Docker 静态恢复；v0.7 起远端外发不再默认开启，历史配置说明以 v0.7 文档为准。APK/DEX 与 PE/ELF 分别通过网络隔离的 JADX、Ghidra Docker 容器恢复 Java 方法、函数伪代码、字符串及导入表。
@@ -24,7 +26,7 @@ v0.3.0：新上传报告默认直接由大模型提取，已移除报告规则�
 
 ## 项目组成与运行依赖
 
-项目现已自包含，样本静态分析器和报告解析组件的源码均已整合进同一仓库，不再依赖本机同级目录。基础运行需要 Python 3.11 或更高版本及 `pyproject.toml` 中声明的 Python 依赖；APK/DEX、PE/ELF 深度静态恢复另需 Docker Desktop 或兼容 Docker Engine。
+项目现已自包含，样本静态分析器和报告解析组件的源码均已整合进同一仓库，不再依赖本机同级目录。基础运行需要 Python 3.11 或更高版本及 `pyproject.toml` 中声明的 Python 依赖。仓库仍保存旧版 Docker 恢复脚本，但 v0.8 样本分析路径不需要 Docker。
 
 ```text
 ai-signal-project/
@@ -51,9 +53,6 @@ git clone git@github.com:yanghanyu521/ai-signal-project.git
 Set-Location '.\ai-signal-project'
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e '.[dev]'
-
-# 首次使用 APK/DEX 或 PE/ELF 深度静态恢复时构建镜像
-.\scripts\build_static_tool_images.ps1
 
 .\.venv\Scripts\python.exe -m ai_signal_hub.main
 ```

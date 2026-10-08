@@ -16,6 +16,7 @@ from .prompt import extract_prompt_features
 from .report import write_artifacts
 from .string_extract import extract_strings, source_text
 from .toolchain import extract_python_call_evidence, extract_toolchain
+from ai_signal_hub.stylometry import build_code_generation_signals
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 COMPONENT_ROOT = PROJECT_ROOT / "components" / "ai_signal_demo"
@@ -65,7 +66,14 @@ def analyze(sample: Path, out: Path, limits: Path, rules: Path) -> None:
         strings, toolchain, prompt, code_style = [], {"evidence": []}, {"embedded_prompts": [], "structural_features": {}, "special_tokens": []}, {"status": "unavailable", "representation": "unknown", "metrics": {}, "ai_generated_detection": {"status": "not_supported", "heuristic_score": None}}
         recovery = {"pyinstaller": {"status": "not_run"}, "apk": {"status": "not_run"}}
         classification = {"llm_involvement": {"label": "unknown", "confidence": 0.0}, "model_attribution": {"vendor": None, "family": "unknown", "model": None, "decision_method": "unknown", "confidence": 0.0}, "evidence_summary": []}
-    result = {"schema_version": "0.2", "sample": metadata, "features": {"toolchain": toolchain, "prompt": prompt, "code_style": code_style, "recovery": recovery}, "classification": classification, "errors": errors}
+    code_generation = build_code_generation_signals(
+        text if not errors else None, metadata.get("language"), metadata.get("recoverability"),
+        metadata["sha256"],
+    )
+    result = {"schema_version": "0.4", "sample": metadata, "features": {
+        "toolchain": toolchain, "prompt": prompt, "code_style": code_style,
+        "code_generation_signals": code_generation, "facts": [], "recovery": recovery,
+    }, "classification": classification, "errors": errors}
     write_artifacts(out, result, strings, COMPONENT_ROOT / "schemas" / "result.schema.json")
     print(json.dumps({"sha256": metadata["sha256"], "out": str(out), "classification": classification}, ensure_ascii=False))
 

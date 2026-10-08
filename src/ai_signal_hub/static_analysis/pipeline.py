@@ -9,6 +9,7 @@ from typing import Any
 from .llm import SampleLLMClient
 from .materials import MaterialIndex, build_material_index, split_large_units
 from .query import StaticQueryService
+from .semantic_discovery import is_ai_toolchain_fact
 
 
 def _estimate_tokens(text: str) -> int:
@@ -107,6 +108,14 @@ def _validate_facts(
         ):
             rejected.append({"reason": "toolchain_fact_has_no_typed_identity", "candidate": candidate})
             continue
+        if group == "toolchain" and not is_ai_toolchain_fact({
+            "raw_value": raw, "normalized_value": normalized,
+            "type": "model_argument" if normalized.get("model_identifier_raw") else
+                    "service_endpoint" if normalized.get("service_endpoint") else "sdk_call",
+            "discovery_method": "llm",
+        }):
+            rejected.append({"reason": "non_ai_toolchain_identity", "candidate": candidate})
+            continue
         raw_limitations = candidate.get("limitations")
         limitations = (
             [raw_limitations] if isinstance(raw_limitations, str) and raw_limitations.strip()
@@ -121,6 +130,10 @@ def _validate_facts(
         } else "unknown"
         material_roles = {unit.probable_role for unit in containing}
         role = next(iter(material_roles)) if len(material_roles) == 1 else "unknown"
+        if group == "prompt" and any(marker in raw.casefold() for marker in (
+            "do not analyze", "ignore previous instructions", "ignore your instructions",
+            "不要分析", "忽略之前的指令")):
+            role = "analyzer_directive"
         role_state = "verified" if role != "unknown" else "unknown"
         relation_verified = any(
             _anchor_matches(anchor, group, raw, containing) for anchor in (relation_anchors or [])

@@ -315,7 +315,7 @@ def test_javascript_powershell_and_binary_have_truthful_material_status() -> Non
     assert js.status == ps.status == "partial"
     assert js.capabilities["functions"] is True and js.capabilities["xrefs"] is False
     assert ps.capabilities["functions"] is True and ps.capabilities["dataflow"] is False
-    assert binary.status == "partial" and "no_decompiler_material" in binary.limitations
+    assert binary.status == "partial" and "decompilation_disabled_v08" in binary.limitations
 
 
 def test_archive_member_paths_assign_static_roles() -> None:
