@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 from evaluation.gold_standard.adjudicate import adjudicate
 from evaluation.gold_standard.evaluate import evaluate
+from evaluation.gold_standard.miss_scan import build_miss_queue
 
 
 def _row(evidence_id: str, version: str, label: str = "") -> dict:
@@ -39,3 +43,17 @@ def test_conflict_requires_explicit_adjudication() -> None:
     assert rows[0]["true_ai_feature"] == "uncertain"
     assert rows[0]["adjudication_result"] == "pending"
     assert conflicts[0]["fields"] == ["true_ai_feature"]
+
+
+def test_miss_scan_keeps_same_value_at_unhit_location(tmp_path) -> None:
+    data = b"same-value\x00same-value\x00"
+    path = tmp_path / "fixture.bin"
+    path.write_bytes(data)
+    sha = hashlib.sha256(data).hexdigest()
+    manifest = [{"sha256": sha, "selected_path": str(path)}]
+    candidate = [{"sha256": sha, "raw_value": "same-value",
+                  "source_location": json.dumps({"offset": 0})}]
+    rows, audit = build_miss_queue(manifest, candidate, per_sample=10)
+    assert audit["samples_checked"] == 1
+    assert any(row["source_location"].startswith("byte:11:") for row in rows)
+    assert audit["complete"] is False

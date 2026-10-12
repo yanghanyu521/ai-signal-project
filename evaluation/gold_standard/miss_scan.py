@@ -16,7 +16,17 @@ from .adjudicate import read_csv
 
 
 def build_miss_queue(manifest: list[dict], candidates: list[dict], *, per_sample: int = 200) -> tuple[list[dict], dict]:
-    known = {(row["sha256"], row["raw_value"]) for row in candidates}
+    known_values = {(row["sha256"], row["raw_value"]) for row in candidates}
+    known_locations = set()
+    for row in candidates:
+        try:
+            location = json.loads(row.get("source_location") or "{}")
+        except ValueError:
+            continue
+        if isinstance(location, dict) and not location.get("member_path"):
+            offset = location.get("offset", location.get("file_offset"))
+            if isinstance(offset, int):
+                known_locations.add((row["sha256"], row["raw_value"], offset))
     queue = []
     inventory = {"samples_checked": 0, "sha_mismatch": [], "missing_files": [],
                  "unhit_regions_discovered": 0, "unhit_regions_queued": 0,
@@ -36,13 +46,13 @@ def build_miss_queue(manifest: list[dict], candidates: list[dict], *, per_sample
         inventory["strings_rejected_by_scan_limit"] += coverage["strings_rejected_by_limit"]
         regions = [
             ("unhit_string", item["value"], f"byte:{item['offset']}:{item['encoding']}")
-            for item in strings if (sha, item["value"]) not in known
+            for item in strings if (sha, item["value"], item["offset"]) not in known_locations
         ]
         if any(path.name.lower().endswith(ext) for ext in (".py", ".js", ".mjs", ".ps1")):
             text = data.decode("utf-8-sig", errors="replace")
             for start in range(0, len(text.splitlines()), 20):
                 raw = "\n".join(text.splitlines()[start:start + 20])
-                if raw.strip() and not any(value in raw for candidate_sha, value in known if candidate_sha == sha):
+                if raw.strip() and not any(value in raw for candidate_sha, value in known_values if candidate_sha == sha):
                     regions.append(("unhit_source_region", raw, f"line:{start + 1}-{start + 20}"))
         inventory["unhit_regions_discovered"] += len(regions)
         # Uniform, deterministic hash sample across byte/line positions, not a

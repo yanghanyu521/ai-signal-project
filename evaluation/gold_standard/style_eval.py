@@ -6,10 +6,13 @@ No model-of-origin accuracy is calculated.
 from __future__ import annotations
 
 import argparse
+import ast
+import hashlib
 import json
 from pathlib import Path
 
 from ai_signal_hub.stylometry.similarity import compare_fingerprints
+from ai_signal_hub.stylometry.fingerprint import build_code_generation_signals
 from .adjudicate import read_csv
 
 
@@ -30,6 +33,41 @@ def _results(root: Path) -> dict[str, dict]:
 
 def _fp(result: dict) -> dict | None:
     return (result.get("features", {}).get("code_generation_signals") or {}).get("fingerprint")
+
+
+def local_source_audit(manifest: list[dict], base: dict[str, dict]) -> dict:
+    repeated = formatted = source_count = 0
+    parseable = 0
+    for item in manifest:
+        sha = item["sha256"]
+        existing = _fp(base.get(sha, {}))
+        if not existing or existing.get("language") != "python":
+            continue
+        path = Path(item.get("selected_path") or "")
+        if not path.is_file():
+            continue
+        data = path.read_bytes()
+        if hashlib.sha256(data).hexdigest() != sha:
+            continue
+        try:
+            text = data.decode("utf-8-sig")
+        except UnicodeError:
+            continue
+        source_count += 1
+        first = build_code_generation_signals(text, "python", "original_source", sha)["fingerprint"]
+        second = build_code_generation_signals(text, "python", "original_source", sha)["fingerprint"]
+        repeated += first["metrics"] == second["metrics"]
+        try:
+            rewritten = ast.unparse(ast.parse(text))
+        except (SyntaxError, ValueError):
+            continue
+        after_format = build_code_generation_signals(rewritten, "python", "original_source", sha)["fingerprint"]
+        if first.get("normalized_ast_hash") and after_format.get("normalized_ast_hash"):
+            parseable += 1
+            formatted += first["normalized_ast_hash"] == after_format["normalized_ast_hash"]
+    return {"same_process_repeated_metrics": repeated, "repeat_compared": source_count,
+            "ast_unparse_same_structure": formatted, "format_compared": parseable,
+            "limitations": "Same-process repeat and ast.unparse formatting only; no cross-platform or external-formatter test."}
 
 
 def evaluate_style(base: dict[str, dict], repeat: dict[str, dict] | None = None,
@@ -88,11 +126,15 @@ def main() -> None:
     parser.add_argument("--repeat", type=Path)
     parser.add_argument("--formatted", type=Path)
     parser.add_argument("--labels", type=Path)
+    parser.add_argument("--manifest", type=Path, help="Private 45-SHA manifest for local source-only audit")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     result = evaluate_style(_results(args.base), _results(args.repeat) if args.repeat else None,
                             _results(args.formatted) if args.formatted else None,
                             read_csv(args.labels) if args.labels else None)
+    if args.manifest:
+        manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+        result["source_only_local_audit"] = local_source_audit(manifest, _results(args.base))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"base_samples": result["base_samples"],

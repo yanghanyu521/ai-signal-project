@@ -105,6 +105,66 @@ def compare(v07: Path, v08_old: Path, post: Path) -> dict:
             "limitation": "Accuracy and complete recall require adjudicated gold standard and independent miss audit."}
 
 
+def markdown(result: dict, style: dict | None = None, gold: dict | None = None) -> str:
+    lines = ["# v0.8 整改与 45 样本复测评估", "",
+             "## 复测范围与可信边界", "",
+             f"同 SHA-256 清单 45 个；整改后实际保存结果 {result['post_result_files']}/45。"
+             f"可用结果的 SHA 一致性：{'通过' if result['same_sha_across_available_versions'] else '失败'}。",
+             "比较四组：v0.7 规则、v0.7 完整 LLM、整改前 v0.8、整改后 v0.8。"
+             "样本未执行，报告侧未重构；原始样本及未脱敏证据只在私有 `data/evaluations/`。", "",
+             "## 已验证的量化结果", "",
+             "下表均为候选记录数，不是正确数、检出率或模型来源判定。", "",
+             "| 材料组 | 样本 | 工具链候选（规则 / v0.7 LLM / v0.8 前 / 整改后） | "
+             "Prompt 候选（同序） | 整改后静态调用候选（工具链 / Prompt） | 整改后源码文体指纹 |",
+             "|---|---:|---:|---:|---:|---:|"]
+    for group, label in (("script_source", "脚本源码"),
+                         ("binary_or_package", "PE/APK 等二进制与封装"),
+                         ("other_or_unresolved", "其他/未确认")):
+        item = result["groups"][group]
+        versions = [item["versions"][key] for key in ("v07_rule", "v07_llm", "v08_pre", "v08_post")]
+        last = versions[-1]
+        lines.append(f"| {label} | {item['samples']} | "
+                     f"{' / '.join(str(v['toolchain_candidates']) for v in versions)} | "
+                     f"{' / '.join(str(v['prompt_candidates']) for v in versions)} | "
+                     f"{last['relation_verified_tools']} / {last['relation_verified_prompts']} | "
+                     f"{last['fingerprint']} |")
+    lines += ["", "整改后 LLM 与扫描覆盖（只统计实际保存的结果）：", "",
+              "| 材料组 | 主提取请求 | 文体请求 | 主提取 Token* | 文体 Token* | "
+              "字符串发现 / 保留 / 进入 LLM | 字符串材料丢弃 |",
+              "|---|---:|---:|---:|---:|---:|---:|"]
+    for group, label in (("script_source", "脚本源码"),
+                         ("binary_or_package", "PE/APK 等"),
+                         ("other_or_unresolved", "其他")):
+        v = result["groups"][group]["versions"]["v08_post"]
+        lines.append(f"| {label} | {v['main_requests']} | {v['style_requests']} | "
+                     f"{v['main_tokens']} | {v['style_tokens']} | "
+                     f"{v['strings_discovered']} / {v['strings_retained']} / {v['string_units_screened']} | "
+                     f"{v['strings_rejected_by_limit']} |")
+    lines += ["", "*仅汇总提供方实际返回的 `total_tokens`；如缺失则此列是已知下界。"
+              "主提取与文体分析请求分别统计，耗时和逐样本覆盖见私有 `comparison_summary.json`。",
+              "", "## 待人工复核的结果", "",
+              "工具链与 Prompt 的正确候选数、漏检数、Precision、Recall、F1、静态调用关系正确升级/错误升级"
+              "均需双人标注和冲突裁决。当前不得把候选数量变化解释为准确率变化。"
+              "独立漏检检查只抽样未命中区域；在未穷尽、未裁决前，Recall 最多是候选池指标。", ""]
+    if style:
+        local = style.get("source_only_local_audit") or {}
+        neighbor = style.get("nearest_neighbor") or {}
+        lines += ["## 代码文体专项", "",
+                  f"源码指纹 {style.get('source_fingerprints')}/{style.get('base_samples')}；"
+                  f"同进程重复指标一致 {local.get('same_process_repeated_metrics', '未测')}/"
+                  f"{local.get('repeat_compared', '未测')}；Python AST 重排后规范化结构一致 "
+                  f"{local.get('ast_unparse_same_structure', '未测')}/{local.get('format_compared', '未测')}。",
+                  f"同家族 Top-1 近邻代理：{neighbor.get('top1_same_family_proxy')}"
+                  f"（有标签可比较 {neighbor.get('family_labeled_pairs')} 对）；"
+                  "这只是样本检索代理，不是生成模型归因。LLM 文体标签准确率尚待人工裁决；"
+                  "45 个样本没有生成模型来源真值，不计算模型来源识别准确率。", ""]
+    lines += ["## 无法验证与下一步", "",
+              "未覆盖/未处理的二进制字符串、APK 成员上限、静态调用不可观测的运行时路径，"
+              "以及尚未进行跨平台格式化验证的文体鲁棒性，均不能由本批次确证。"
+              "下一步先完成人工金标准与独立漏检裁决，再计算分脚本/二进制、家族、已知/未知模型的指标。", ""]
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v07", type=Path, required=True)
@@ -114,6 +174,8 @@ def main() -> None:
     result = compare(args.v07, args.v08_pre, args.post)
     output = args.post / "comparison_summary.json"
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    style = _read(args.post / "style_evaluation.json")
+    (args.post / "analysis_report.md").write_text(markdown(result, style), encoding="utf-8")
     print(json.dumps({"post_result_files": result["post_result_files"],
                       "same_sha": result["same_sha_across_available_versions"],
                       "groups": {key: value["samples"] for key, value in result["groups"].items()}},

@@ -17,7 +17,7 @@
 - Prompt：程序送往模型的指令、试图绕过模型限制的越狱指令、针对本分析器的注入和普通文本分开。无调用关系但语义明确的 Prompt 保留为候选，不升级为调用验证。
 - 文体：独立检查代码/注释/嵌入 Prompt/数据四种材料；标注 `generation_claim` 和 `dialogue_residue` 是否确实属于源码作者残留。验证重复运行指标、格式化前后变化、已知近邻是否检索到。45 个恶意样本无生成模型真值，不能报告模型来源识别准确率。
 
-文体评估脚本：`python -m evaluation.gold_standard.style_eval --base <整改后批次> --repeat <重复批次> --formatted <格式化批次> --labels <已裁决文体标签.csv> --output <私有评估.json>`。缺少某组可以省略相应参数，输出为 `null` 而非虚构数值。文体标签按 `style_label_template.csv` 私有填写；近邻的“同家族 Top-1”仅作检索代理，不是生成模型来源准确率。
+文体评估脚本：`python -m evaluation.gold_standard.style_eval --base <整改后批次> --manifest <私有manifest.json> --repeat <重复批次> --formatted <格式化批次> --labels <已裁决文体标签.csv> --output <私有评估.json>`。缺少某组可以省略相应参数，输出为 `null` 而非虚构数值。提供 manifest 时，可另行做同进程确定性重复和 Python `ast.unparse` 格式化实验；两者不等于跨平台/外部格式化验证。文体标签按 `style_label_template.csv` 私有填写；近邻的“同家族 Top-1”仅作检索代理，不是生成模型来源准确率。
 
 ## 指标口径
 
