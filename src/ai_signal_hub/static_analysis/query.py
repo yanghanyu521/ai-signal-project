@@ -45,6 +45,9 @@ class StaticQueryService:
 
     def _bounded(self, unit) -> dict[str, Any]:
         value = unit.as_dict(include_content=True)
+        if "string_entries" in value.get("location", {}):
+            value["location"] = {key: item for key, item in value["location"].items()
+                                 if key != "string_entries"}
         if len(value["content"]) > self.max_chars:
             value["content"] = value["content"][:self.max_chars]
             value["content_truncated"] = True

@@ -225,12 +225,25 @@ class LegacyAdapters:
             source_location=prompt.get("source_location") or {"source": prompt.get("source")})
             for prompt in (features.get("prompt") or {}).get("embedded_prompts") or []
             if isinstance(prompt.get("text"), str) and prompt["text"].strip()]
-        generation["asset_profiles"].extend(build_text_profile(
-            unit.content, sha256, asset_kind="data_text",
-            source_location={"unit_id": unit.unit_id, **unit.location})
-            for unit in material_index.units if unit.representation == "extracted_string"
-            and len(unit.content) >= 80 and len(unit.content.split()) >= 12
-            and sum(char.isalpha() for char in unit.content) / len(unit.content) >= 0.6)
+        for unit in material_index.units:
+            if unit.representation != "extracted_string":
+                continue
+            entries = unit.location.get("string_entries") or [{
+                "start_char": 0, "end_char": len(unit.content),
+                "file_offset": unit.location.get("file_offset")}]
+            for entry in entries:
+                value = unit.content[entry["start_char"]:entry["end_char"]]
+                if (len(value) >= 80 and len(value.split()) >= 12
+                        and sum(char.isalpha() for char in value) / len(value) >= 0.6):
+                    generation["asset_profiles"].append(build_text_profile(
+                        value, sha256, asset_kind="data_text",
+                        source_location={"unit_id": unit.unit_id,
+                                         "file_offset": entry.get("file_offset"),
+                                         "member_path": unit.location.get("member_path")}))
+                if len(generation["asset_profiles"]) >= 64:
+                    break
+            if len(generation["asset_profiles"]) >= 64:
+                break
         generation["asset_profiles"] = generation["asset_profiles"][:64]
         self._sync_fact_index(features)
 

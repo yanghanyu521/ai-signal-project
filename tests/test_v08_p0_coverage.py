@@ -5,6 +5,7 @@ import struct
 from aisig.string_extract import scan_strings
 from ai_signal_hub.static_analysis.materials import build_material_index
 from ai_signal_hub.static_analysis.pipeline import _validate_facts
+from ai_signal_hub.static_analysis.pipeline import run_static_analysis
 from ai_signal_hub.static_analysis.semantic_discovery import is_ai_toolchain_fact
 
 
@@ -33,6 +34,35 @@ def test_material_index_retains_late_binary_strings() -> None:
     index = build_material_index(payload, {"sha256": SHA, "file_type": "PE32"})
     assert any("private-late-model-selector" in unit.content for unit in index.units)
     assert index.recovery_coverage["strings_retained"] > 512
+    assert len(index.units) < 50
+
+
+def test_grouped_binary_string_preserves_exact_offset_and_analysis_coverage(tmp_path) -> None:
+    payload = b"MZ" + b"\x00".join(f"filler-{n:04d}".encode() for n in range(600))
+    raw = "private-late-model-selector"
+    payload += b"\x00" + raw.encode() + b"\x00"
+    offset = payload.index(raw.encode())
+
+    class Client:
+        def analyze(self, units, context=None):
+            assert all("string_entries" not in unit["location"] for unit in units)
+            found = next(unit for unit in units if raw in unit["content"])
+            return {"facts": [{"signal_group": "toolchain", "raw_value": raw,
+                               "normalized_value": {"model_identifier_raw": raw},
+                               "source_unit_ids": [found["unit_id"]]}], "queries": []}
+
+    result = run_static_analysis(payload, {"sha256": SHA, "file_type": "PE32"},
+                                 tmp_path, llm_client=Client())
+    assert result["run"]["facts"][0]["source_location"]["file_offset"] == offset
+    assert result["run"]["coverage"]["string_units_screened"] > 512
+    assert result["run"]["coverage"]["string_analysis_rate"] == 1.0
+    index = build_material_index(payload, {"sha256": SHA, "file_type": "PE32"})
+    block = next(unit for unit in index.units if raw in unit.content)
+    facts, _ = _validate_facts({"facts": [{
+        "signal_group": "toolchain", "raw_value": "late-model-selector",
+        "normalized_value": {"model_identifier_raw": "late-model-selector"},
+        "source_unit_ids": [block.unit_id]}]}, index)
+    assert facts[0]["source_location"]["file_offset"] == offset + len("private-")
 
 
 def test_dex_string_id_and_pe_resource_section_are_reported() -> None:
@@ -43,7 +73,7 @@ def test_dex_string_id_and_pe_resource_section_are_reported() -> None:
     dex[0x78:0x78 + 16] = b"\x0eprivate-router\x00"
     index = build_material_index(bytes(dex), {"sha256": SHA, "file_type": "DEX"})
     assert index.recovery_coverage["dex_string_ids_recovered"] == 1
-    assert any(unit.content == "private-router" for unit in index.units)
+    assert any("private-router" in unit.content for unit in index.units)
 
     pe = bytearray(320)
     pe[:2] = b"MZ"
@@ -55,7 +85,8 @@ def test_dex_string_id_and_pe_resource_section_are_reported() -> None:
     pe[256:272] = "资源提示信息".encode("utf-16le")
     sections = build_material_index(bytes(pe), {"sha256": SHA, "file_type": "PE32"})
     assert sections.recovery_coverage["pe_sections_mapped"] == 1
-    assert any(unit.location.get("pe_section") == ".rsrc" for unit in sections.units)
+    assert any(entry.get("pe_section") == ".rsrc" for unit in sections.units
+               for entry in unit.location.get("string_entries", []))
 
 
 def test_llm_self_named_model_is_candidate_not_semantic_proof() -> None:

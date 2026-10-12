@@ -241,22 +241,53 @@ def _string_index(data: bytes, sample: dict[str, Any], language: str = "binary")
                 strings.append(item)
                 existing.add((item["offset"], item["value"]))
     coverage["strings_retained"] = len(strings)
+    coverage["strings_discovered"] = max(coverage["strings_discovered"], len(strings))
+    coverage["strings_discovered_is_lower_bound"] = bool(
+        coverage.get("resource_string_candidates") or coverage.get("dex_string_ids_recovered"))
     coverage["pe_sections_mapped"] = len(pe_sections)
+    strings.sort(key=lambda item: int(item.get("offset") or 0))
+    blocks: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    current_chars = 0
+    current_values: set[str] = set()
     for item in strings:
         content = str(item.get("value") or "")
         if not content:
             continue
-        offset = int(item.get("offset") or 0)
-        unit = AnalysisUnit(
-            _unit_id(sha256, "string", offset, content), artifact, sha256,
+        if current and (len(current) >= 48 or current_chars + len(content) + 1 > 6000
+                        or content in current_values):
+            blocks.append(current)
+            current, current_chars, current_values = [], 0, set()
+        current.append(item)
+        current_chars += len(content) + 1
+        current_values.add(content)
+    if current:
+        blocks.append(current)
+    for block in blocks:
+        entries = []
+        content_parts = []
+        char_start = 0
+        for item in block:
+            value = str(item["value"])
+            offset = int(item["offset"])
+            entries.append({"start_char": char_start, "end_char": char_start + len(value),
+                            "file_offset": offset, "encoding": item.get("encoding"),
+                            "pe_section": next((name for start, end, name in pe_sections
+                                                if start <= offset < end), None)})
+            content_parts.append(value)
+            char_start += len(value) + 1
+        content = "\n".join(content_parts)
+        offset = entries[0]["file_offset"]
+        units.append(AnalysisUnit(
+            _unit_id(sha256, "string_block", offset, content), artifact, sha256,
             "string", language, "extracted_string", content,
-            {"file_offset": offset, "encoding": item.get("encoding"),
-             **({"pe_section": next((name for start, end, name in pe_sections
-                                    if start <= offset < end), None)} if pe_sections else {})},
-            {"tool": "aisig_string_extract", "version": "1", "source_mapping_quality": "exact_offset"},
+            {"file_offset": offset, "file_offset_end": entries[-1]["file_offset"],
+             "string_count": len(entries), "string_entries": entries},
+            {"tool": "aisig_string_extract", "version": "2", "source_mapping_quality": "exact_string_entry_offset"},
             parse_status="parsed", limitations=["no_call_relation_from_string_scan"],
-        )
-        units.append(unit)
+        ))
+    units.sort(key=lambda unit: hashlib.blake2b(unit.unit_id.encode(), digest_size=8).digest())
+    coverage["string_material_blocks"] = len(units)
     limitations = ["binary_strings_only", "no_static_call_relation_from_strings",
                    "decompilation_disabled_v08"]
     if coverage["strings_rejected_by_limit"]:
