@@ -6,6 +6,8 @@ from scripts.report_v08_remediation import markdown
 def test_report_never_presents_candidate_volume_as_accuracy() -> None:
     count = {key: 0 for key in (
         "toolchain_candidates", "prompt_candidates", "relation_verified_tools",
+        "llm_toolchain_location_candidates", "llm_toolchain_semantic_confirmed",
+        "llm_toolchain_static_call_verified",
         "relation_verified_prompts", "fingerprint", "main_requests", "style_requests",
         "main_tokens", "style_tokens", "strings_discovered", "strings_retained",
         "string_units_screened", "strings_rejected_by_limit", "bytes_scanned",

@@ -16,6 +16,14 @@ class LegacyUnavailable(RuntimeError):
     pass
 
 
+def _read_strings_jsonl(path: Path) -> list[dict[str, Any]]:
+    # JSONL is delimited by LF (U+000A) only. str.splitlines() also treats
+    # U+0085/U+2028/U+2029 as separators, which can occur inside valid JSON
+    # string values recovered from an APK and corrupt an otherwise valid row.
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n")
+            if line.strip()]
+
+
 class LegacyAdapters:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -112,7 +120,7 @@ class LegacyAdapters:
             enhanced["classification"]["derivation_stage"] = "final"
             enhanced["schema_version"] = "0.4"
             if enhanced != result:
-                strings = [json.loads(line) for line in (artifact_dir / "strings.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+                strings = _read_strings_jsonl(artifact_dir / "strings.jsonl")
                 write_artifacts(artifact_dir, enhanced, strings,
                                 self.settings.legacy_sample_project / "schemas" / "result.schema.json")
             result = enhanced

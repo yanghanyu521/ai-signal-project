@@ -35,6 +35,15 @@ def _stats(result: dict) -> dict:
     return {
         "sample_size_bytes": result.get("sample", {}).get("size"),
         "toolchain_candidates": len(tools), "prompt_candidates": len(prompts),
+        "llm_toolchain_location_candidates": sum(
+            item.get("discovery_method") == "llm" and
+            item.get("semantic_confirmation_status") == "candidate" for item in tools),
+        "llm_toolchain_semantic_confirmed": sum(
+            item.get("discovery_method") == "llm" and
+            item.get("semantic_confirmation_status") == "semantic_confirmed" for item in tools),
+        "llm_toolchain_static_call_verified": sum(
+            item.get("discovery_method") == "llm" and
+            item.get("semantic_confirmation_status") == "static_call_verified" for item in tools),
         "relation_verified_tools": sum(item.get("verification_status") == "relation_verified" for item in tools),
         "relation_verified_prompts": sum(item.get("call_binding") == "relation_verified" for item in prompts),
         "fingerprint": generation.get("fingerprint") is not None,
@@ -93,6 +102,9 @@ def compare(v07: Path, v08_old: Path, post: Path) -> dict:
             stats = [row["versions"][version] for row in subset if row["versions"][version]]
             totals[version] = {key: sum((entry.get(key) or 0) for entry in stats)
                                for key in ("toolchain_candidates", "prompt_candidates",
+                                           "llm_toolchain_location_candidates",
+                                           "llm_toolchain_semantic_confirmed",
+                                           "llm_toolchain_static_call_verified",
                                            "relation_verified_tools", "relation_verified_prompts",
                                            "fingerprint", "style_observations", "style_rejected_text_asset",
                                            "main_requests", "style_requests", "main_tokens", "style_tokens",
@@ -141,6 +153,14 @@ def markdown(result: dict, style: dict | None = None, gold: dict | None = None) 
     for item in result["groups"].values():
         statuses.update(item["versions"]["v08_post"]["llm_statuses"])
     lines += ["", f"整改后主 LLM 状态：`{json.dumps(dict(statuses), ensure_ascii=False)}`。", ""]
+    tier_totals = {key: sum(item["versions"]["v08_post"][key] for item in result["groups"].values())
+                   for key in ("llm_toolchain_location_candidates",
+                               "llm_toolchain_semantic_confirmed",
+                               "llm_toolchain_static_call_verified")}
+    lines += [f"LLM 新发现工具链的证据层级：仅位置候选 {tier_totals['llm_toolchain_location_candidates']}，"
+              f"语义确认 {tier_totals['llm_toolchain_semantic_confirmed']}，"
+              f"静态调用验证 {tier_totals['llm_toolchain_static_call_verified']}。"
+              "这些是自动证据层级，仍须人工判断真伪。", ""]
     lines += ["", "整改后 LLM 与扫描覆盖（只统计实际保存的结果）：", "",
               "| 材料组 | 主提取请求 | 文体请求 | 主提取 Token* | 文体 Token* | "
               "字符串发现 / 保留 / 进入 LLM | 字符串材料丢弃 |",
