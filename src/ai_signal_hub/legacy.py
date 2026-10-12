@@ -16,6 +16,14 @@ class LegacyUnavailable(RuntimeError):
     pass
 
 
+def _read_strings_jsonl(path: Path) -> list[dict[str, Any]]:
+    # JSONL is delimited by LF (U+000A) only. str.splitlines() also treats
+    # U+0085/U+2028/U+2029 as separators, which can occur inside valid JSON
+    # string values recovered from an APK and corrupt an otherwise valid row.
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").split("\n")
+            if line.strip()]
+
+
 class LegacyAdapters:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -85,8 +93,21 @@ class LegacyAdapters:
                 raise ValueError("样本超过统一平台静态规则输入上限")
             enhanced = apply_sample_rules(result, data)
             enhanced = recover_prompt_features(enhanced, data)
-            # A missing decompiler must not prevent reading model markers from
-            # the very same CArchive script bytes used for prompt recovery.
+            # Language recovery (notably extensionless PowerShell) can happen
+            # in sample rules after the base analyzer created its fingerprint.
+            # Rebuild from the original bytes using the final metadata only;
+            # binaries and recovered pseudo-source remain ineligible.
+            from aisig.string_extract import source_text
+            from .stylometry.fingerprint import build_code_generation_signals
+            metadata = enhanced.get("sample") or {}
+            language = metadata.get("language")
+            source, _ = source_text(data, language) if metadata.get("recoverability") == "original_source" else (None, None)
+            enhanced.setdefault("features", {})["code_generation_signals"] = build_code_generation_signals(
+                source, language, metadata.get("recoverability"), str(metadata.get("sha256") or ""),
+            )
+            enhanced["features"].setdefault("facts", [])
+            # Container and string scanning can read model markers without
+            # a decompiler; natural-language prompts do not imply tool use.
             # Do not infer a toolchain from the natural-language prompt itself.
             self._recover_packaged_toolchain(enhanced, data)
             self._run_semantic_static_analysis(enhanced, data, artifact_dir)
@@ -97,9 +118,9 @@ class LegacyAdapters:
                 enhanced["features"]["toolchain"], enhanced["features"]["prompt"]
             )
             enhanced["classification"]["derivation_stage"] = "final"
-            enhanced["schema_version"] = "0.3"
+            enhanced["schema_version"] = "0.4"
             if enhanced != result:
-                strings = [json.loads(line) for line in (artifact_dir / "strings.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+                strings = _read_strings_jsonl(artifact_dir / "strings.jsonl")
                 write_artifacts(artifact_dir, enhanced, strings,
                                 self.settings.legacy_sample_project / "schemas" / "result.schema.json")
             result = enhanced
@@ -135,15 +156,24 @@ class LegacyAdapters:
                         max_output_tokens=self.settings.sample_llm_max_output_tokens,
                     )
             material_index = build_material_index(data, result.get("sample") or {})
-            if self.settings.static_tools_docker_enabled:
-                from .static_analysis.docker_tools import DockerStaticTools
-                material_index = DockerStaticTools(
-                    enabled=True,
-                    jadx_image=self.settings.jadx_docker_image,
-                    ghidra_image=self.settings.ghidra_docker_image,
-                    timeout_seconds=self.settings.static_tool_timeout_seconds,
-                ).augment(material_index, data, result.get("sample") or {}, artifact_dir)
+            # v0.8 intentionally analyzes binary strings and bounded members;
+            # Ghidra/JADX are not part of this path, even with an old setting.
             self._sync_prompt_compositions(features, material_index)
+            from .static_analysis.style_semantics import analyze_style
+            from .stylometry.fingerprint import build_code_generation_signals, build_text_profile
+            generation = features.setdefault("code_generation_signals", {})
+            sha256 = str((result.get("sample") or {}).get("sha256") or "")
+            member_profiles = []
+            seen_members = set()
+            for unit in material_index.units:
+                member = unit.location.get("member_path")
+                if (member and member not in seen_members and unit.representation == "original_source"
+                        and unit.language in {"python", "javascript", "powershell"}):
+                    seen_members.add(member)
+                    member_profiles.append(build_code_generation_signals(
+                        unit.content, unit.language, "original_source", sha256, member_path=member))
+            if member_profiles:
+                generation["member_source_profiles"] = member_profiles
             analysis = run_static_analysis(
                 data, result.get("sample") or {}, artifact_dir,
                 llm_client=client, mode=self.settings.sample_llm_mode,
@@ -169,6 +199,14 @@ class LegacyAdapters:
                     "redaction_count": 0,
                     "redaction_mapping_persisted": False,
                 }
+            style_review = analyze_style(material_index, client)
+            generation.setdefault("style_indicators", []).extend(style_review["observations"])
+            generation["hallucination_candidates"] = [
+                {**item, "verification_level": "candidate"}
+                for item in style_review["observations"] if item["label"] == "hallucination_candidate"
+            ]
+            generation["semantic_analysis"] = {key: value for key, value in style_review.items()
+                                               if key != "observations"}
         except Exception as exc:
             # Semantic analysis is an optional enhancement. Configuration,
             # model and parser failures must never discard deterministic facts.
@@ -188,6 +226,33 @@ class LegacyAdapters:
                      if item.get("fact_id") not in {fact.get("fact_id") for fact in facts})
         self._merge_semantic_facts(features, analysis["run"]["facts"])
         self._sync_prompt_compositions(features, material_index)
+        # Build instruction profiles after semantic merge so LLM-only prompts
+        # participate in downstream inspection and candidate similarity.
+        generation["asset_profiles"] = [build_text_profile(
+            prompt["text"], sha256, asset_kind="instruction",
+            source_location=prompt.get("source_location") or {"source": prompt.get("source")})
+            for prompt in (features.get("prompt") or {}).get("embedded_prompts") or []
+            if isinstance(prompt.get("text"), str) and prompt["text"].strip()]
+        for unit in material_index.units:
+            if unit.representation != "extracted_string":
+                continue
+            entries = unit.location.get("string_entries") or [{
+                "start_char": 0, "end_char": len(unit.content),
+                "file_offset": unit.location.get("file_offset")}]
+            for entry in entries:
+                value = unit.content[entry["start_char"]:entry["end_char"]]
+                if (len(value) >= 80 and len(value.split()) >= 12
+                        and sum(char.isalpha() for char in value) / len(value) >= 0.6):
+                    generation["asset_profiles"].append(build_text_profile(
+                        value, sha256, asset_kind="data_text",
+                        source_location={"unit_id": unit.unit_id,
+                                         "file_offset": entry.get("file_offset"),
+                                         "member_path": unit.location.get("member_path")}))
+                if len(generation["asset_profiles"]) >= 64:
+                    break
+            if len(generation["asset_profiles"]) >= 64:
+                break
+        generation["asset_profiles"] = generation["asset_profiles"][:64]
         self._sync_fact_index(features)
 
     @staticmethod
@@ -350,6 +415,7 @@ class LegacyAdapters:
     @staticmethod
     def _merge_semantic_facts(features: dict[str, Any], facts: list[dict[str, Any]]) -> None:
         import hashlib
+        from aisig.prompt import simhash64
 
         tool_evidence = features.setdefault("toolchain", {}).setdefault("evidence", [])
         prompts = features.setdefault("prompt", {}).setdefault("embedded_prompts", [])
@@ -380,6 +446,7 @@ class LegacyAdapters:
                         "verification": fact.get("verification") or {},
                         "attribution_eligible": bool(fact.get("attribution_eligible")),
                         "semantic_review_status": fact.get("semantic_review_status"),
+                        "semantic_confirmation_status": fact.get("semantic_confirmation_status"),
                         "role": fact.get("role"), "proposed_role": fact.get("proposed_role"),
                         "limitations": fact.get("limitations") or [],
                         "confidence": 0.7,
@@ -390,22 +457,30 @@ class LegacyAdapters:
                 if digest not in prompt_seen:
                     prompts.append({
                         "text": raw, "text_hash": digest, "source": "sample_llm_static_analysis",
+                        "fuzzy_hash": {"algorithm": "simhash64_normalized_tokens_v1",
+                                       "value": simhash64(raw),
+                                       "normalization": "unicode_nfkc_lowercase_whitespace_collapse"},
                         "source_unit_ids": fact.get("source_unit_ids") or [],
                         "source_location": fact.get("source_location") or {},
                         "discovery_method": "llm", "verification_status": fact.get("verification_status"),
                         "verification": fact.get("verification") or {},
                         "attribution_eligible": bool(fact.get("attribution_eligible")),
                         "semantic_review_status": fact.get("semantic_review_status"),
+                        "prompt_role": fact.get("prompt_role"),
                         "role": fact.get("role"), "proposed_role": fact.get("proposed_role"),
                         "completeness": "string_constant",
                         "call_binding": (
                             "relation_verified" if fact.get("attribution_eligible") else "unverified"
-                        ), "comparison_eligible": False,
+                        ), "comparison_eligible": fact.get("prompt_role") in {
+                            "program_prompt", "jailbreak_prompt"},
                         "limitations": fact.get("limitations") or [],
                     })
                     prompt_seen.add(digest)
             elif fact.get("signal_group") == "code_observation" and isinstance(raw, str):
-                observations = features.setdefault("code_generation_signals", {}).setdefault("observations", [])
+                # Historical observations remain available for audit. Their
+                # semantic category is not an authorship/style fingerprint.
+                observations = features.setdefault("code_generation_signals", {}).setdefault("legacy_observations", [])
+                features["code_generation_signals"]["observations"] = observations
                 if fact.get("fact_id") not in {item.get("fact_id") for item in observations}:
                     observations.append({
                         "fact_id": fact.get("fact_id"), "raw_value": raw,

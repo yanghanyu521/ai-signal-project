@@ -152,6 +152,19 @@ def get_sample_associations(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.get("/api/v1/samples/{sha256}/style-neighbors", tags=["samples"])
+def get_sample_style_neighbors(
+    sha256: str, limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    include_unmatched: bool = False,
+) -> dict:
+    if not re.fullmatch(r"[a-fA-F0-9]{64}", sha256):
+        raise HTTPException(status_code=400, detail="无效 SHA-256")
+    try:
+        return service.similarity.style_neighbors(sha256.lower(), limit, include_unmatched)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.post("/api/v1/samples/recluster", tags=["samples"])
 def recluster_samples() -> dict:
     try:

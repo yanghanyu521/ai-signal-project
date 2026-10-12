@@ -58,7 +58,7 @@ class Settings:
     sample_llm_timeout_seconds: float = field(default_factory=lambda: float(os.getenv("SAMPLE_LLM_TIMEOUT_SECONDS", "240")))
     sample_llm_max_input_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_INPUT_TOKENS", "64000")))
     sample_llm_max_output_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_OUTPUT_TOKENS", "16384")))
-    static_tools_docker_enabled: bool = field(default_factory=lambda: _bool_env("STATIC_TOOLS_DOCKER_ENABLED", True))
+    static_tools_docker_enabled: bool = field(default_factory=lambda: _bool_env("STATIC_TOOLS_DOCKER_ENABLED", False))
     jadx_docker_image: str = field(default_factory=lambda: os.getenv("JADX_DOCKER_IMAGE", "ai-signal/jadx:1.5.6"))
     ghidra_docker_image: str = field(default_factory=lambda: os.getenv("GHIDRA_DOCKER_IMAGE", "ai-signal/ghidra:12.1.3"))
     static_tool_timeout_seconds: int = field(default_factory=lambda: int(os.getenv("STATIC_TOOL_TIMEOUT_SECONDS", "600")))

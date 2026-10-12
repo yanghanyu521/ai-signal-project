@@ -4,7 +4,7 @@ import ast
 import hashlib
 import io
 import re
-import shutil
+import struct
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any
@@ -210,32 +210,144 @@ def _lexical_index(text: str, sha256: str, language: str) -> MaterialIndex:
 
 
 def _string_index(data: bytes, sample: dict[str, Any], language: str = "binary") -> MaterialIndex:
-    from aisig.string_extract import extract_strings
+    from aisig.string_extract import scan_strings
 
     sha256 = str(sample.get("sha256") or "unknown")
     artifact = f"sample:{sha256}"
     units = []
-    for item in extract_strings(data, 512, 4096):
+    pe_sections = _pe_sections(data) if data.startswith(b"MZ") else []
+    strings, coverage = scan_strings(data, 50_000, 4096,
+                                     include_cjk=language in {"arsc", "xml"},
+                                     stratified=True)
+    for start, end, name in pe_sections:
+        if name != ".rsrc":
+            continue
+        extra, extra_coverage = scan_strings(data[start:end], 10_000, 4096, include_cjk=True)
+        existing = {(item["offset"], item["value"]) for item in strings}
+        for item in extra:
+            item = {**item, "offset": item["offset"] + start}
+            if (item["offset"], item["value"]) not in existing:
+                strings.append(item)
+                existing.add((item["offset"], item["value"]))
+        coverage["resource_scan_bytes"] = end - start
+        coverage["resource_string_candidates"] = extra_coverage["strings_discovered"]
+        coverage["resource_strings_rejected_by_limit"] = extra_coverage["strings_rejected_by_limit"]
+    if data.startswith(b"dex\n"):
+        dex_strings = _dex_string_items(data)
+        coverage["dex_string_ids_recovered"] = len(dex_strings)
+        existing = {(item["offset"], item["value"]) for item in strings}
+        for item in dex_strings:
+            if (item["offset"], item["value"]) not in existing:
+                strings.append(item)
+                existing.add((item["offset"], item["value"]))
+    coverage["strings_retained"] = len(strings)
+    coverage["strings_discovered"] = max(coverage["strings_discovered"], len(strings))
+    coverage["strings_discovered_is_lower_bound"] = bool(
+        coverage.get("resource_string_candidates") or coverage.get("dex_string_ids_recovered"))
+    coverage["pe_sections_mapped"] = len(pe_sections)
+    strings.sort(key=lambda item: int(item.get("offset") or 0))
+    blocks: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    current_chars = 0
+    current_values: set[str] = set()
+    for item in strings:
         content = str(item.get("value") or "")
         if not content:
             continue
-        offset = int(item.get("offset") or 0)
-        unit = AnalysisUnit(
-            _unit_id(sha256, "string", offset, content), artifact, sha256,
+        if current and (len(current) >= 48 or current_chars + len(content) + 1 > 6000
+                        or content in current_values):
+            blocks.append(current)
+            current, current_chars, current_values = [], 0, set()
+        current.append(item)
+        current_chars += len(content) + 1
+        current_values.add(content)
+    if current:
+        blocks.append(current)
+    for block in blocks:
+        entries = []
+        content_parts = []
+        char_start = 0
+        for item in block:
+            value = str(item["value"])
+            offset = int(item["offset"])
+            entries.append({"start_char": char_start, "end_char": char_start + len(value),
+                            "file_offset": offset, "encoding": item.get("encoding"),
+                            "pe_section": next((name for start, end, name in pe_sections
+                                                if start <= offset < end), None)})
+            content_parts.append(value)
+            char_start += len(value) + 1
+        content = "\n".join(content_parts)
+        offset = entries[0]["file_offset"]
+        units.append(AnalysisUnit(
+            _unit_id(sha256, "string_block", offset, content), artifact, sha256,
             "string", language, "extracted_string", content,
-            {"file_offset": offset, "encoding": item.get("encoding")},
-            {"tool": "aisig_string_extract", "version": "1", "source_mapping_quality": "exact_offset"},
+            {"file_offset": offset, "file_offset_end": entries[-1]["file_offset"],
+             "string_count": len(entries), "string_entries": entries},
+            {"tool": "aisig_string_extract", "version": "2", "source_mapping_quality": "exact_string_entry_offset"},
             parse_status="parsed", limitations=["no_call_relation_from_string_scan"],
-        )
-        units.append(unit)
-    file_type = str(sample.get("file_type") or "").lower()
-    native = data.startswith((b"MZ", b"\x7fELF")) or "pe32" in file_type or "elf" in file_type
-    limitations = ["binary_strings_only", "no_decompiler_material"]
-    if native:
-        limitations.append("ghidra_missing_dependency" if not shutil.which("analyzeHeadless") else "ghidra_not_enabled")
+        ))
+    units.sort(key=lambda unit: hashlib.blake2b(unit.unit_id.encode(), digest_size=8).digest())
+    coverage["string_material_blocks"] = len(units)
+    limitations = ["binary_strings_only", "no_static_call_relation_from_strings",
+                   "decompilation_disabled_v08"]
+    if coverage["strings_rejected_by_limit"]:
+        limitations.append("string_material_limit_reached")
     return MaterialIndex(sha256, language, "partial" if units else "unsupported",
                          {"text": False, "constants": bool(units), "functions": False,
-                          "xrefs": False, "dataflow": False}, units, limitations)
+                          "xrefs": False, "dataflow": False}, units, limitations,
+                         recovery_coverage=coverage)
+
+
+def _dex_string_items(data: bytes) -> list[dict[str, Any]]:
+    """Recover DEX string_data_id values with exact offsets; never execute DEX."""
+    if len(data) < 0x70 or not data.startswith(b"dex\n"):
+        return []
+    count, table = struct.unpack_from("<II", data, 0x38)
+    if count > 200_000 or table > len(data) or count * 4 > len(data) - table:
+        return []
+    found = []
+    for number in range(count):
+        offset = struct.unpack_from("<I", data, table + number * 4)[0]
+        if offset >= len(data):
+            continue
+        pos = offset
+        for _ in range(5):
+            if pos >= len(data):
+                break
+            byte = data[pos]
+            pos += 1
+            if byte & 0x80 == 0:
+                break
+        end = data.find(b"\x00", pos, min(len(data), pos + 16_384))
+        if end < 0:
+            continue
+        raw = data[pos:end].replace(b"\xc0\x80", b"\x00")
+        value = raw.decode("utf-8", errors="replace")
+        if len(value) >= 4 and sum(ch.isprintable() for ch in value) / len(value) >= 0.8:
+            found.append({"offset": pos, "encoding": "dex_mutf8", "value": value[:4096]})
+    return found
+
+
+def _pe_sections(data: bytes) -> list[tuple[int, int, str]]:
+    """Map recovered strings to PE sections, including .rsrc, when headers exist."""
+    if len(data) < 0x40:
+        return []
+    pe_offset = struct.unpack_from("<I", data, 0x3c)[0]
+    if pe_offset > len(data) - 24 or data[pe_offset:pe_offset + 4] != b"PE\x00\x00":
+        return []
+    count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    base = pe_offset + 24 + optional_size
+    sections = []
+    for number in range(min(count, 96)):
+        pos = base + 40 * number
+        if pos + 40 > len(data):
+            break
+        name = data[pos:pos + 8].rstrip(b"\x00").decode("ascii", errors="replace")
+        size, offset = struct.unpack_from("<II", data, pos + 16)
+        if offset < len(data) and size:
+            sections.append((offset, min(len(data), offset + size), name))
+    return sections
 
 
 def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
@@ -244,17 +356,27 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
     limitations = ["bounded_archive_member_scan", "archive_members_never_executed_or_extracted"]
     total = 0
     coverage = {"members_discovered": 0, "members_considered": 0, "members_recovered": 0,
-                "members_failed": 0, "members_unsupported": 0, "members_rejected_by_limit": 0}
+                "members_failed": 0, "members_unsupported": 0, "members_rejected_by_limit": 0,
+                "member_bytes_scanned": 0, "strings_discovered": 0, "strings_retained": 0,
+                "strings_rejected_by_limit": 0}
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             all_members = archive.infolist()
             coverage["members_discovered"] = len(all_members)
-            members = all_members[:128]
+            # Prefer executable and readable content over bundled artwork; still
+            # retain original member positions and bounded decompression limits.
+            prioritized = sorted(all_members, key=lambda info: (
+                0 if info.filename.lower().endswith((".dex", ".py", ".js", ".mjs", ".ps1")) else
+                1 if info.filename.lower().endswith((".xml", ".json", ".txt", ".arsc")) else 2,
+                info.filename,
+            ))
+            members = prioritized[:128]
             coverage["members_rejected_by_limit"] += max(0, len(all_members) - len(members))
             if len(all_members) > len(members):
                 limitations.append("member_limit_reached")
             for info in members:
-                if info.is_dir() or info.file_size > 2 * 1024 * 1024 or info.compress_size == 0 and info.file_size > 0:
+                suffix = info.filename.lower().rsplit(".", 1)[-1] if "." in info.filename else ""
+                if info.is_dir() or info.file_size > 16 * 1024 * 1024 or info.compress_size == 0 and info.file_size > 0:
                     coverage["members_rejected_by_limit"] += 1
                     continue
                 if info.file_size / max(1, info.compress_size) > 100:
@@ -265,10 +387,18 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                     limitations.append("expanded_byte_limit_reached")
                     coverage["members_rejected_by_limit"] += 1
                     break
+                # A PE/ELF can be hidden behind an arbitrary filename. For
+                # members above the ordinary 2 MiB cap, inspect only four
+                # decompressed bytes before allowing a full bounded scan.
+                if info.file_size > 2 * 1024 * 1024:
+                    with archive.open(info) as stream:
+                        magic = stream.read(4)
+                    if not magic.startswith((b"MZ", b"\x7fELF")):
+                        coverage["members_rejected_by_limit"] += 1
+                        continue
                 member = archive.read(info)
                 coverage["members_considered"] += 1
                 total += len(member)
-                suffix = info.filename.lower().rsplit(".", 1)[-1] if "." in info.filename else ""
                 member_language = {"py": "python", "js": "javascript", "mjs": "javascript",
                                    "ps1": "powershell"}.get(suffix)
                 if member_language:
@@ -287,8 +417,12 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                         unit.probable_role = _member_role(info.filename)
                     units.extend(child.units)
                     coverage["members_recovered"] += int(bool(child.units))
-                elif suffix in {"dex", "so", "dll"}:
-                    child = _string_index(member, {**sample, "file_type": suffix}, suffix)
+                elif suffix in {"dex", "so", "dll", "arsc", "xml", "json", "txt"} or member.startswith((b"MZ", b"\x7fELF")):
+                    member_format = "pe" if member.startswith(b"MZ") else suffix
+                    child = _string_index(member, {**sample, "file_type": member_format}, member_format)
+                    coverage["member_bytes_scanned"] += child.recovery_coverage.get("bytes_scanned", 0)
+                    for metric in ("strings_discovered", "strings_retained", "strings_rejected_by_limit"):
+                        coverage[metric] += child.recovery_coverage.get(metric, 0)
                     for unit in child.units:
                         unit.unit_id = "unit:" + hashlib.sha256(
                             f"{sha256}:{info.filename}:{unit.unit_id}".encode("utf-8")
@@ -306,8 +440,7 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                              {"text": False, "constants": False, "functions": False,
                               "xrefs": False, "dataflow": False}, [],
                              [f"archive_parse_failed:{type(exc).__name__}"], recovery_coverage=coverage)
-    if any(str(unit.location.get("member_path", "")).endswith(".dex") for unit in units):
-        limitations.append("jadx_missing_dependency" if not shutil.which("jadx") else "jadx_not_enabled")
+    limitations.append("decompilation_disabled_v08")
     return MaterialIndex(sha256, "archive", "partial" if units else "unsupported",
                          {"text": any(unit.representation == "original_source" for unit in units),
                           "constants": bool(units),

@@ -13,6 +13,7 @@
 | GET | `/samples` | 分页列出样本 |
 | GET | `/samples/{sha256}` | 样本详情、证据快照和关联事件 |
 | GET | `/samples/{sha256}/associations` | 样本聚类、分项相似度、近邻和共同特征 |
+| GET | `/samples/{sha256}/style-neighbors` | v0.8 只读代码文体近邻及逐指标解释；`limit`、`include_unmatched` 可选 |
 | POST | `/samples/recluster` | 重建当前知识库全部样本聚类 |
 | POST | `/reports/analyze` | 上传报告，按必填 `target_name` 和可选 `target_aliases` 定向抽取目标事件 |
 | GET | `/reports` | 列出报告 |

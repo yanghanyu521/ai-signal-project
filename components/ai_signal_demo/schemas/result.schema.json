@@ -3,8 +3,13 @@
   "title": "AI Signal Static Analysis Result",
   "type": "object",
   "required": ["schema_version", "sample", "features", "classification", "errors"],
+  "allOf": [{"if": {"properties": {"schema_version": {"const": "0.4"}}},
+             "then": {"properties": {"features": {"required": ["code_generation_signals", "facts"],
+               "properties": {"code_generation_signals": {"required": ["metrics", "style_indicators",
+                 "generation_artifacts", "hallucination_candidates", "local_profiles", "fingerprint",
+                 "source_hypotheses", "analysis_status"]}}}}}}],
   "properties": {
-    "schema_version": {"enum": ["0.1", "0.2", "0.3"]},
+    "schema_version": {"enum": ["0.1", "0.2", "0.3", "0.4"]},
     "sample": {"type": "object", "required": ["sha256", "size", "file_type", "recoverability"]},
     "features": {
       "type": "object",
@@ -33,7 +38,17 @@
         },
         "code_generation_signals": {
           "type": "object",
-          "properties": {"observations": {"type": "array"}}
+          "properties": {
+            "metrics": {"type": "object"},
+            "style_indicators": {"type": "array"},
+            "generation_artifacts": {"type": "array"},
+            "hallucination_candidates": {"type": "array"},
+            "local_profiles": {"type": "array"},
+            "fingerprint": {"type": ["object", "null"]},
+            "source_hypotheses": {"type": "object"},
+            "analysis_status": {"type": "object"},
+            "legacy_observations": {"type": "array"}
+          }
         },
         "static_analysis": {"type": "object"},
         "facts": {"type": "array"}

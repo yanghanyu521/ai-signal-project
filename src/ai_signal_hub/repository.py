@@ -116,6 +116,12 @@ def _sample_key_features(result: dict[str, Any]) -> dict[str, Any]:
             "recoverability": (features.get("code_style") or {}).get("recoverability"),
             "metrics": (features.get("code_style") or {}).get("metrics") or {},
         },
+        "code_generation_signals": {
+            "analysis_status": (features.get("code_generation_signals") or {}).get("analysis_status") or {},
+            "fingerprint": (features.get("code_generation_signals") or {}).get("fingerprint"),
+            "local_profile_count": len((features.get("code_generation_signals") or {}).get("local_profiles") or []),
+            "generation_artifacts": (features.get("code_generation_signals") or {}).get("generation_artifacts") or [],
+        },
     }
 
 
@@ -192,7 +198,7 @@ class Repository:
                 VALUES(?,?,?,?,?,?,?,?)
                 """,
                 ("run:" + uuid.uuid4().hex, sha256, result.get("schema_version"),
-                 "ai-signal-hub/0.6.0", "analysis_or_import", artifact_path,
+                 "ai-signal-hub/0.8.0", "analysis_or_import", artifact_path,
                  json_text(result), now),
             )
         return self.get_sample(sha256)
@@ -703,6 +709,11 @@ class Repository:
                 "SELECT sha256, result_json FROM samples ORDER BY sha256"
             ).fetchall()
         return self.db.rows(rows, ("result_json",))
+
+    def sample_family_map(self) -> dict[str, str | None]:
+        with self.db.connect() as connection:
+            rows = connection.execute("SELECT sha256, source_case FROM samples").fetchall()
+        return {row["sha256"]: row["source_case"] for row in rows}
 
     def replace_sample_similarity(
         self,
