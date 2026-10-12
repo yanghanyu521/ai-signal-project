@@ -53,8 +53,10 @@ def compare_fingerprints(left: dict[str, Any] | None, right: dict[str, Any] | No
             "method": "normalized_style_metric_overlap_v1", "components": components,
             "shared_indicators": shared,
             "same_content": left.get("content_hash") == right.get("content_hash"),
-            "same_structure": bool(left.get("structure_hash") and
-                                   left.get("structure_hash") == right.get("structure_hash")),
+            "same_structure": bool(left.get("normalized_ast_hash") and
+                                   left.get("normalized_ast_hash") == right.get("normalized_ast_hash")),
+            "same_structure_statistics": bool(left.get("structure_stats_hash") and
+                                              left.get("structure_stats_hash") == right.get("structure_stats_hash")),
             "near_duplicate_warning": left.get("content_hash") == right.get("content_hash"),
             "missing_features": sorted((set(a) ^ set(b)) & {
                 "ast_node_distribution", "ast_pattern_distribution", "comment_ratio", "naming_style"}),

@@ -174,6 +174,7 @@ def _validate_facts(
             "semantic_review_status": "needs_review",
             "semantic_confirmation_status": semantic_status,
             "prompt_role": prompt_role,
+            "proposed_prompt_role": candidate.get("prompt_role") if group == "prompt" else None,
             "limitations": limitations,
             "role": role,
             "proposed_role": proposed_role,

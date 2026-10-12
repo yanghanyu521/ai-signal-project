@@ -12,7 +12,7 @@ from collections import Counter
 from typing import Any
 
 
-VERSION = "stylometry/1.0"
+VERSION = "stylometry/1.1"
 MIN_TOKENS = 12
 _IDENTIFIER = re.compile(r"\b[A-Za-z_][A-Za-z_0-9]*\b")
 _ARTIFACTS = (
@@ -26,6 +26,45 @@ _ARTIFACTS = (
 def _digest(value: Any) -> str:
     encoded = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _normalized_ast_hash(text: str) -> str | None:
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return None
+
+    class Normalize(ast.NodeTransformer):
+        def visit_Name(self, node: ast.Name):
+            node.id = "_"
+            return self.generic_visit(node)
+
+        def visit_arg(self, node: ast.arg):
+            node.arg = "_"
+            return self.generic_visit(node)
+
+        def visit_Attribute(self, node: ast.Attribute):
+            node.attr = "_"
+            return self.generic_visit(node)
+
+        def visit_FunctionDef(self, node: ast.FunctionDef):
+            node.name = "_"
+            return self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+            node.name = "_"
+            return self.generic_visit(node)
+
+        def visit_ClassDef(self, node: ast.ClassDef):
+            node.name = "_"
+            return self.generic_visit(node)
+
+        def visit_Constant(self, node: ast.Constant):
+            node.value = f"<{type(node.value).__name__}>"
+            return node
+
+    canonical = ast.dump(Normalize().visit(tree), include_attributes=False)
+    return "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _ratios(values: Counter[str]) -> dict[str, float]:
@@ -167,6 +206,8 @@ def _profile(text: str, language: str, sha256: str, *, granularity: str,
         "blank_ratio", "comment_ratio", "comment_tokens_per_code_token", "mean_identifier_length",
         "naming_style", "indent_distribution", "token_unigrams", "token_bigrams")}
     length = metrics["effective_tokens"]
+    ast_hash = _normalized_ast_hash(text) if language == "python" and parse_error is None else None
+    stats_hash = _digest(stable) if stable else None
     return {
         "fingerprint_version": VERSION, "asset_kind": "code", "granularity": granularity,
         "sample_sha256": sha256, "member_path": member_path, "language": language,
@@ -174,7 +215,9 @@ def _profile(text: str, language: str, sha256: str, *, granularity: str,
         "content_hash": "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "effective_tokens": length, "information_status": "low_information" if length < MIN_TOKENS else "comparable",
         "metrics": metrics, "raw_style_hash": _digest(raw),
-        "structure_hash": _digest(stable) if stable else None,
+        "normalized_ast_hash": ast_hash,
+        "structure_stats_hash": stats_hash,
+        "structure_hash": ast_hash,  # compatibility alias; never a histogram hash
         "analysis_coverage": {"lexical": True, "ast": parse_error is None, "parse_error": parse_error},
         "generator_family_hypothesis": "unknown", "generator_model_hypothesis": "unknown",
         "generator_version_hypothesis": "unknown", "prompt_strategy_hypothesis": "unknown",

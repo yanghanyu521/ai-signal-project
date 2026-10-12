@@ -111,7 +111,8 @@ def _prompt_profile(result: dict) -> dict:
         if item.get("fuzzy_hash") and fuzzy is None:
             invalid += 1
         if exact or fuzzy is not None:
-            category = "analyzer_directive" if item.get("role") == "analyzer_directive" else "program_prompt"
+            category = item.get("prompt_role") or (
+                "analyzer_directive" if item.get("role") == "analyzer_directive" else "program_prompt")
             key = (category, exact or f"simhash64:{fuzzy:016x}")
             completeness = item.get("completeness") or "legacy_complete_text"
             # Repeated copies of a prompt must not inflate overlap.

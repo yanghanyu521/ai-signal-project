@@ -29,11 +29,14 @@ class PythonStaticGraph:
         if len(self.nodes) > max_nodes:
             raise ValueError("source_ast_node_limit")
         self.node_by_id = {id(node): node for node in self.nodes}
+        self.parent_by_id = {id(child): parent for parent in self.nodes
+                             for child in ast.iter_child_nodes(parent)}
         self.scope: dict[int, str] = {}
         self.locals: dict[str, set[str]] = defaultdict(set)
         self.functions: dict[tuple[str, str], tuple[str, ast.FunctionDef | ast.AsyncFunctionDef]] = {}
         self.edges: dict[Hashable, set[Hashable]] = defaultdict(set)
         self.assignments: dict[Hashable, list[tuple[int, ast.AST]]] = defaultdict(list)
+        self.mutations: dict[Hashable, list[tuple[int, ast.AST]]] = defaultdict(list)
         self.external: set[int] = set()
         self.aliases: dict[str, str] = {}
         self.client_info: dict[Hashable, dict[str, Any]] = {}
@@ -103,6 +106,48 @@ class PythonStaticGraph:
     def _link(self, left: Hashable, right: ast.AST | Hashable) -> None:
         self.edges[left].add(id(right) if isinstance(right, ast.AST) else right)
 
+    def _if_arm(self, value: ast.AST) -> tuple[int, str] | None:
+        child = value
+        while (parent := self.parent_by_id.get(id(child))) is not None:
+            if isinstance(parent, ast.If):
+                return (id(parent), "body" if child in parent.body else "else")
+            child = parent
+        return None
+
+    def _visible_assignments(self, symbol: Hashable, use_line: int) -> list[ast.AST]:
+        preceding = [(line, value) for line, value in self.assignments.get(symbol, [])
+                     if line <= use_line]
+        if not preceding:
+            return []
+        latest_line, latest_value = max(preceding, key=lambda item: item[0])
+        control = self._if_arm(latest_value)
+        if control is None:
+            return [value for line, value in preceding if line == latest_line]
+        # A later conditional assignment can have multiple feasible arms.
+        # Within each arm, only the last assignment is visible.
+        branch = [(line, value, self._if_arm(value)) for line, value in preceding
+                  if (arm := self._if_arm(value)) is not None and arm[0] == control[0]]
+        chosen = {}
+        for line, value, arm in branch:
+            if arm not in chosen or line >= chosen[arm][0]:
+                chosen[arm] = (line, value)
+        visible = [value for _, value in chosen.values()]
+        control_node = self.node_by_id[control[0]]
+        if isinstance(control_node, ast.If) and not control_node.orelse:
+            earlier = [(line, value) for line, value in preceding
+                       if line < control_node.lineno and self._if_arm(value) != control]
+            if earlier:
+                baseline = max(line for line, _ in earlier)
+                visible.extend(value for line, value in earlier if line == baseline)
+        return visible
+
+    def _visible_mutations(self, symbol: Hashable, use_line: int) -> list[ast.AST]:
+        assignments = [(line, value) for line, value in self.assignments.get(symbol, [])
+                       if line <= use_line]
+        baseline = max((line for line, _ in assignments), default=-1)
+        return [value for line, value in self.mutations.get(symbol, [])
+                if baseline <= line <= use_line]
+
     def _build(self, node: ast.AST) -> None:
         scope, key = self.scope[id(node)], id(node)
         if isinstance(node, ast.Name):
@@ -159,7 +204,9 @@ class PythonStaticGraph:
                 and isinstance(node.func.value, ast.Name)
             ):
                 for argument in node.args:
-                    self._link(self.symbol(scope, node.func.value.id), argument)
+                    symbol = self.symbol(scope, node.func.value.id)
+                    self._link(symbol, argument)
+                    self.mutations[symbol].append((node.lineno, argument))
             elif self.call_name(node).endswith(("b64decode", ".decode", ".format", ".join")):
                 if isinstance(node.func, ast.Attribute):
                     self._link(key, node.func.value)
@@ -217,13 +264,23 @@ class PythonStaticGraph:
 
     def reachable(self, roots: Iterable[Hashable]) -> set[Hashable]:
         seen: set[Hashable] = set()
-        pending = list(roots)
+        pending = [(key, None) for key in roots]
         while pending:
-            key = pending.pop()
+            key, use_line = pending.pop()
             if key in seen:
                 continue
             seen.add(key)
-            pending.extend(self.edges.get(key, ()))
+            node = self.node_by_id.get(key) if isinstance(key, int) else None
+            if isinstance(node, ast.Name):
+                use_line = node.lineno
+            assignments = self.assignments.get(key, [])
+            if assignments and use_line is not None:
+                visible = self._visible_assignments(key, use_line)
+                if visible:
+                    pending.extend((id(value), use_line) for value in visible)
+                    pending.extend((id(value), use_line) for value in self._visible_mutations(key, use_line))
+                continue
+            pending.extend((target, use_line) for target in self.edges.get(key, ()))
         return seen
 
     def static_values(self, node_or_key: ast.AST | Hashable | None, *, max_depth: int = 16) -> set[Any]:
@@ -243,11 +300,11 @@ class PythonStaticGraph:
             symbol = self.symbol(self.scope[id(node)], node.id)
             definitions = self.assignments.get(symbol, [])
             if definitions:
-                previous = [value for line, value in definitions if line <= node.lineno]
-                if not previous:
+                visible = self._visible_assignments(symbol, node.lineno)
+                if not visible:
                     return set()
                 values: set[Any] = set()
-                for value in previous:
+                for value in [*visible, *self._visible_mutations(symbol, node.lineno)]:
                     values.update(self._values(id(value), seen, depth - 1))
                 return values
             return self._values(symbol, seen, depth - 1)

@@ -199,18 +199,6 @@ class LegacyAdapters:
             ]
             generation["semantic_analysis"] = {key: value for key, value in style_review.items()
                                                if key != "observations"}
-            generation["asset_profiles"] = [build_text_profile(
-                prompt["text"], sha256, asset_kind="instruction",
-                source_location=prompt.get("source_location") or {"source": prompt.get("source")})
-                for prompt in (features.get("prompt") or {}).get("embedded_prompts") or []
-                if isinstance(prompt.get("text"), str) and prompt["text"].strip()]
-            generation["asset_profiles"].extend(build_text_profile(
-                unit.content, sha256, asset_kind="data_text",
-                source_location={"unit_id": unit.unit_id, **unit.location})
-                for unit in material_index.units if unit.representation == "extracted_string"
-                and len(unit.content) >= 80 and len(unit.content.split()) >= 12
-                and sum(char.isalpha() for char in unit.content) / len(unit.content) >= 0.6)
-            generation["asset_profiles"] = generation["asset_profiles"][:64]
         except Exception as exc:
             # Semantic analysis is an optional enhancement. Configuration,
             # model and parser failures must never discard deterministic facts.
@@ -230,6 +218,20 @@ class LegacyAdapters:
                      if item.get("fact_id") not in {fact.get("fact_id") for fact in facts})
         self._merge_semantic_facts(features, analysis["run"]["facts"])
         self._sync_prompt_compositions(features, material_index)
+        # Build instruction profiles after semantic merge so LLM-only prompts
+        # participate in downstream inspection and candidate similarity.
+        generation["asset_profiles"] = [build_text_profile(
+            prompt["text"], sha256, asset_kind="instruction",
+            source_location=prompt.get("source_location") or {"source": prompt.get("source")})
+            for prompt in (features.get("prompt") or {}).get("embedded_prompts") or []
+            if isinstance(prompt.get("text"), str) and prompt["text"].strip()]
+        generation["asset_profiles"].extend(build_text_profile(
+            unit.content, sha256, asset_kind="data_text",
+            source_location={"unit_id": unit.unit_id, **unit.location})
+            for unit in material_index.units if unit.representation == "extracted_string"
+            and len(unit.content) >= 80 and len(unit.content.split()) >= 12
+            and sum(char.isalpha() for char in unit.content) / len(unit.content) >= 0.6)
+        generation["asset_profiles"] = generation["asset_profiles"][:64]
         self._sync_fact_index(features)
 
     @staticmethod
@@ -392,6 +394,7 @@ class LegacyAdapters:
     @staticmethod
     def _merge_semantic_facts(features: dict[str, Any], facts: list[dict[str, Any]]) -> None:
         import hashlib
+        from aisig.prompt import simhash64
 
         tool_evidence = features.setdefault("toolchain", {}).setdefault("evidence", [])
         prompts = features.setdefault("prompt", {}).setdefault("embedded_prompts", [])
@@ -422,6 +425,7 @@ class LegacyAdapters:
                         "verification": fact.get("verification") or {},
                         "attribution_eligible": bool(fact.get("attribution_eligible")),
                         "semantic_review_status": fact.get("semantic_review_status"),
+                        "semantic_confirmation_status": fact.get("semantic_confirmation_status"),
                         "role": fact.get("role"), "proposed_role": fact.get("proposed_role"),
                         "limitations": fact.get("limitations") or [],
                         "confidence": 0.7,
@@ -432,17 +436,22 @@ class LegacyAdapters:
                 if digest not in prompt_seen:
                     prompts.append({
                         "text": raw, "text_hash": digest, "source": "sample_llm_static_analysis",
+                        "fuzzy_hash": {"algorithm": "simhash64_normalized_tokens_v1",
+                                       "value": simhash64(raw),
+                                       "normalization": "unicode_nfkc_lowercase_whitespace_collapse"},
                         "source_unit_ids": fact.get("source_unit_ids") or [],
                         "source_location": fact.get("source_location") or {},
                         "discovery_method": "llm", "verification_status": fact.get("verification_status"),
                         "verification": fact.get("verification") or {},
                         "attribution_eligible": bool(fact.get("attribution_eligible")),
                         "semantic_review_status": fact.get("semantic_review_status"),
+                        "prompt_role": fact.get("prompt_role"),
                         "role": fact.get("role"), "proposed_role": fact.get("proposed_role"),
                         "completeness": "string_constant",
                         "call_binding": (
                             "relation_verified" if fact.get("attribution_eligible") else "unverified"
-                        ), "comparison_eligible": False,
+                        ), "comparison_eligible": fact.get("prompt_role") in {
+                            "program_prompt", "jailbreak_prompt"},
                         "limitations": fact.get("limitations") or [],
                     })
                     prompt_seen.add(digest)
