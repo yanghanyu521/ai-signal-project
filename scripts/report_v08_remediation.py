@@ -33,6 +33,7 @@ def _stats(result: dict) -> dict:
     style = generation.get("semantic_analysis") or {}
     style_usage = style.get("provider_usage") or {}
     return {
+        "sample_size_bytes": result.get("sample", {}).get("size"),
         "toolchain_candidates": len(tools), "prompt_candidates": len(prompts),
         "relation_verified_tools": sum(item.get("verification_status") == "relation_verified" for item in tools),
         "relation_verified_prompts": sum(item.get("call_binding") == "relation_verified" for item in prompts),
@@ -48,7 +49,12 @@ def _stats(result: dict) -> dict:
         "strings_discovered": recovery.get("strings_discovered"),
         "strings_retained": recovery.get("strings_retained"),
         "strings_rejected_by_limit": recovery.get("strings_rejected_by_limit"),
-        "bytes_scanned": recovery.get("bytes_scanned") or recovery.get("member_bytes_scanned"),
+        "bytes_scanned": recovery.get("bytes_scanned"),
+        "byte_scan_denominator": result.get("sample", {}).get("size") if recovery.get("bytes_scanned") is not None else None,
+        "member_bytes_scanned": recovery.get("member_bytes_scanned"),
+        "archive_members_discovered": recovery.get("members_discovered"),
+        "archive_members_considered": recovery.get("members_considered"),
+        "archive_members_recovered": recovery.get("members_recovered"),
         "string_units_indexed": coverage.get("string_units_indexed"),
         "string_units_screened": coverage.get("string_units_screened"),
         "string_analysis_rate": coverage.get("string_analysis_rate"),
@@ -92,7 +98,10 @@ def compare(v07: Path, v08_old: Path, post: Path) -> dict:
                                            "main_requests", "style_requests", "main_tokens", "style_tokens",
                                            "main_elapsed_seconds", "style_elapsed_seconds",
                                            "strings_discovered", "strings_retained", "strings_rejected_by_limit",
-                                           "bytes_scanned", "string_units_indexed", "string_units_screened")}
+                                           "bytes_scanned", "byte_scan_denominator", "member_bytes_scanned",
+                                           "archive_members_discovered", "archive_members_considered",
+                                           "archive_members_recovered", "member_rejected_by_limit",
+                                           "string_units_indexed", "string_units_screened")}
             totals[version]["result_files"] = len(stats)
             totals[version]["llm_statuses"] = dict(Counter(entry.get("llm_status") for entry in stats))
         grouped[group] = {"samples": len(subset), "versions": totals}
@@ -128,6 +137,10 @@ def markdown(result: dict, style: dict | None = None, gold: dict | None = None) 
                      f"{' / '.join(str(v['prompt_candidates']) for v in versions)} | "
                      f"{last['relation_verified_tools']} / {last['relation_verified_prompts']} | "
                      f"{last['fingerprint']} |")
+    statuses = Counter()
+    for item in result["groups"].values():
+        statuses.update(item["versions"]["v08_post"]["llm_statuses"])
+    lines += ["", f"整改后主 LLM 状态：`{json.dumps(dict(statuses), ensure_ascii=False)}`。", ""]
     lines += ["", "整改后 LLM 与扫描覆盖（只统计实际保存的结果）：", "",
               "| 材料组 | 主提取请求 | 文体请求 | 主提取 Token* | 文体 Token* | "
               "字符串发现 / 保留 / 进入 LLM | 字符串材料丢弃 |",
@@ -142,6 +155,15 @@ def markdown(result: dict, style: dict | None = None, gold: dict | None = None) 
                      f"{v['strings_rejected_by_limit']} |")
     lines += ["", "*仅汇总提供方实际返回的 `total_tokens`；如缺失则此列是已知下界。"
               "主提取与文体分析请求分别统计，耗时和逐样本覆盖见私有 `comparison_summary.json`。",
+              "", "二进制材料扫描口径："]
+    binary = result["groups"]["binary_or_package"]["versions"]["v08_post"]
+    bytes_total = binary["byte_scan_denominator"]
+    lines += [f"- 非归档二进制实际扫描 {binary['bytes_scanned']}/{bytes_total} 字节"
+              + (f"（{binary['bytes_scanned']/bytes_total:.1%}）" if bytes_total else "（无可比样本）") + "。",
+              f"- 归档成员发现/考虑/恢复 {binary['archive_members_discovered']}/"
+              f"{binary['archive_members_considered']}/{binary['archive_members_recovered']}；"
+              f"因限制拒绝 {binary['member_rejected_by_limit']}，成员字节扫描 "
+              f"{binary['member_bytes_scanned']}。归档压缩文件大小不能充当未压缩成员分母。",
               "", "## 待人工复核的结果", "",
               "工具链与 Prompt 的正确候选数、漏检数、Precision、Recall、F1、静态调用关系正确升级/错误升级"
               "均需双人标注和冲突裁决。当前不得把候选数量变化解释为准确率变化。"
@@ -149,6 +171,8 @@ def markdown(result: dict, style: dict | None = None, gold: dict | None = None) 
     if style:
         local = style.get("source_only_local_audit") or {}
         neighbor = style.get("nearest_neighbor") or {}
+        rejected_text = sum(item["versions"]["v08_post"]["style_rejected_text_asset"]
+                            for item in result["groups"].values())
         lines += ["## 代码文体专项", "",
                   f"源码指纹 {style.get('source_fingerprints')}/{style.get('base_samples')}；"
                   f"同进程重复指标一致 {local.get('same_process_repeated_metrics', '未测')}/"
@@ -156,6 +180,7 @@ def markdown(result: dict, style: dict | None = None, gold: dict | None = None) 
                   f"{local.get('ast_unparse_same_structure', '未测')}/{local.get('format_compared', '未测')}。",
                   f"同家族 Top-1 近邻代理：{neighbor.get('top1_same_family_proxy')}"
                   f"（有标签可比较 {neighbor.get('family_labeled_pairs')} 对）；"
+                  f"嵌入文本被自动排除的错误文体候选 {rejected_text} 条（仍须人工复核）。"
                   "这只是样本检索代理，不是生成模型归因。LLM 文体标签准确率尚待人工裁决；"
                   "45 个样本没有生成模型来源真值，不计算模型来源识别准确率。", ""]
     lines += ["## 无法验证与下一步", "",
