@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import hashlib
+import heapq
 from heapq import merge
 from typing import Any
 
@@ -21,13 +23,14 @@ def extract_strings(data: bytes, max_strings: int, max_chars: int) -> list[dict[
 
 
 def scan_strings(data: bytes, max_strings: int, max_chars: int, *,
-                 include_cjk: bool = False) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+                 include_cjk: bool = False, stratified: bool = False) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Scan every supported encoding; select by byte offset, not encoding order.
 
     The cap limits material retained, never how much of the input is scanned.
     Consequently callers can distinguish extraction coverage from retention.
     """
     found: list[dict[str, Any]] = []
+    sampled: list[tuple[int, int, dict[str, Any]]] = []
     seen_at_offset: set[str] = set()
     current_offset = -1
     patterns = (("ascii", ASCII_RE), ("utf8", UTF8_RE),
@@ -56,13 +59,28 @@ def scan_strings(data: bytes, max_strings: int, max_chars: int, *,
         seen_at_offset.add(value)
         total += 1
         by_encoding[encoding] += 1
-        if len(found) < max_strings:
-            found.append({"encoding": encoding, "offset": offset, "value": _clean(value, max_chars)})
-            retained_by_encoding[encoding] += 1
+        item = {"encoding": encoding, "offset": offset, "value": _clean(value, max_chars)}
+        if stratified:
+            # Hash-reservoir selection gives the beginning/end and every
+            # encoding the same chance, without model/SDK vocabulary rules.
+            priority = int.from_bytes(hashlib.blake2b(
+                f"{offset}:{encoding}:{value}".encode("utf-8", "replace"), digest_size=8).digest(), "big")
+            entry = (-priority, total, item)
+            if len(sampled) < max_strings:
+                heapq.heappush(sampled, entry)
+            elif sampled and priority < -sampled[0][0]:
+                heapq.heapreplace(sampled, entry)
+        elif len(found) < max_strings:
+            found.append(item)
+    if stratified:
+        found = [item for _, _, item in sorted(sampled, key=lambda entry: -entry[0])]
+    for item in found:
+        retained_by_encoding[item["encoding"]] += 1
     return found, {"bytes_scanned": len(data), "strings_discovered": total,
                    "strings_retained": len(found), "strings_rejected_by_limit": total - len(found),
                    "strings_by_encoding": by_encoding,
                    "strings_retained_by_encoding": retained_by_encoding,
+                   "selection": "uniform_hash_reservoir" if stratified else "offset_prefix",
                    "retention_rate": round(len(found) / total, 6) if total else None}
 
 

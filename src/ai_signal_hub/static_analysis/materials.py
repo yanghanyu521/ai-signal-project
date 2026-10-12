@@ -217,7 +217,8 @@ def _string_index(data: bytes, sample: dict[str, Any], language: str = "binary")
     units = []
     pe_sections = _pe_sections(data) if data.startswith(b"MZ") else []
     strings, coverage = scan_strings(data, 50_000, 4096,
-                                     include_cjk=language in {"arsc", "xml"})
+                                     include_cjk=language in {"arsc", "xml"},
+                                     stratified=True)
     for start, end, name in pe_sections:
         if name != ".rsrc":
             continue

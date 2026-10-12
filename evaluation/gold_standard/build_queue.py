@@ -14,7 +14,7 @@ from pathlib import Path
 FIELDS = [
     "evidence_id", "sha256", "family", "sample_kind", "feature_category",
     "raw_value", "source_location", "candidate_versions", "candidate_types",
-    "predicted_call_relation", "predicted_prompt_role", "model_familiarity",
+    "predicted_call_relation", "predicted_prompt_role", "version_details", "model_familiarity",
     "true_ai_feature", "static_call_verified", "prompt_role", "annotator",
     "adjudication_result", "adjudicator", "notes",
 ]
@@ -80,15 +80,22 @@ def build_queue(v07: Path, v08: Path, post: Path | None = None) -> list[dict]:
                     found[key]["_types"] = set()
                     found[key]["_relations"] = set()
                     found[key]["_roles"] = set()
+                    found[key]["_details"] = {}
                 row = found[key]
                 row["_versions"].add(version)
                 row["_types"].add(str(item.get("type") or item.get("source") or "unknown"))
                 row["_relations"].add(str(item.get("verification_status") or item.get("call_binding") or "unknown"))
                 row["_roles"].add(str(item.get("prompt_role") or item.get("role") or "unknown"))
+                row["_details"][version] = {
+                    "type": item.get("type") or item.get("source"),
+                    "call_relation": item.get("verification_status") or item.get("call_binding") or "unknown",
+                    "prompt_role": item.get("prompt_role") or item.get("role") or "unknown",
+                }
     for row in found.values():
         for key, column in (("_versions", "candidate_versions"), ("_types", "candidate_types"),
                             ("_relations", "predicted_call_relation"), ("_roles", "predicted_prompt_role")):
             row[column] = "|".join(sorted(row.pop(key)))
+        row["version_details"] = json.dumps(row.pop("_details"), ensure_ascii=False, sort_keys=True)
     return sorted(found.values(), key=lambda row: (row["sha256"], row["feature_category"], row["evidence_id"]))
 
 
@@ -112,6 +119,13 @@ def main() -> None:
     if not rows:
         raise SystemExit("No candidate data found; check all result directories.")
     write_queue(rows, args.output)
+    inventory = _read((args.post or args.v08) / "manifest.json")
+    audit = {"manifest_samples": len(inventory),
+             "samples_with_candidates": len({row["sha256"] for row in rows}),
+             "samples_without_candidates": sorted({item["sha256"] for item in inventory}
+                                                  - {row["sha256"] for row in rows})}
+    args.output.with_suffix(".inventory.json").write_text(
+        json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"rows": len(rows), "sha256_count": len({row["sha256"] for row in rows}),
                       "output": str(args.output)}, ensure_ascii=False))
 

@@ -24,7 +24,9 @@ def _score(rows: list[dict], version: str) -> dict:
     recall = tp / (tp + fn) if tp + fn else None
     f1 = (2 * precision * recall / (precision + recall) if precision + recall else 0.0) \
         if precision is not None and recall is not None else None
-    relation_rows = [row for row in predicted if "relation_verified" in row.get("predicted_call_relation", "")]
+    relation_rows = [row for row in predicted if (
+        json.loads(row.get("version_details") or "{}").get(version, {}).get("call_relation")
+        in {"relation_verified", "verified"})]
     relation_labeled = [row for row in relation_rows if row.get("static_call_verified") in {"yes", "no"}]
     return {"tp": tp, "fp": fp, "fn_candidate_pool": fn, "pending_labels": pending,
             "precision": round(precision, 6) if precision is not None else None,

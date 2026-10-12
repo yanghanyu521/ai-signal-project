@@ -16,12 +16,12 @@ from .semantic_discovery import semantic_context_status
 def _prompt_role(raw: str, context: str, relation_verified: bool) -> str:
     lowered = raw.casefold()
     if any(term in lowered for term in (
-        "do not analyze", "ignore your instructions", "ignore previous instructions",
+        "do not analyze", "ignore your instructions",
         "不要分析", "忽略之前的指令", "you are an analyst", "你是分析器",
     )):
         return "analyzer_injection"
     if any(term in lowered for term in (
-        "ignore all previous", "bypass safety", "disregard safety", "jailbreak",
+        "ignore all previous", "ignore previous instructions", "bypass safety", "disregard safety", "jailbreak",
         "忽略所有之前", "绕过安全", "越狱",
     )):
         return "jailbreak_prompt"
