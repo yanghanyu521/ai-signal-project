@@ -150,17 +150,20 @@ class SampleLLMClient:
             try:
                 with httpx.Client(timeout=self.timeout_seconds, transport=self.transport) as client:
                     response = client.post(endpoint, headers=headers, json=request, follow_redirects=False)
-                if response.status_code == 429 or response.status_code >= 500:
-                    if attempt < 2:
-                        time.sleep(2 ** attempt)
-                        continue
                 response.raise_for_status()
                 break
-            except httpx.HTTPError:
+            except httpx.HTTPStatusError as exc:
+                code = exc.response.status_code
+                if (code == 429 or code >= 500) and attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                # Do not log provider bodies: they may contain submitted evidence.
+                raise RuntimeError(f"样本侧大模型返回 HTTP {code}") from None
+            except httpx.TransportError:
                 if attempt < 2:
                     time.sleep(2 ** attempt)
                     continue
-                raise RuntimeError("样本侧大模型连接失败、超时或返回错误状态") from None
+                raise RuntimeError("样本侧大模型连接失败或超时") from None
         if response is None:
             raise RuntimeError("样本侧大模型未返回响应")
         body = response.json()

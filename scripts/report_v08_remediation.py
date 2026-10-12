@@ -117,8 +117,13 @@ def compare(v07: Path, v08_old: Path, post: Path) -> dict:
             totals[version]["result_files"] = len(stats)
             totals[version]["llm_statuses"] = dict(Counter(entry.get("llm_status") for entry in stats))
         grouped[group] = {"samples": len(subset), "versions": totals}
+    post_statuses = dict(Counter(
+        (row["versions"]["v08_post"] or {}).get("llm_status") for row in rows
+    ))
     return {"schema_version": "v08-remediation-comparison/1.0", "expected_samples": 45,
             "post_result_files": sum(row["versions_present"]["v08_post"] for row in rows),
+            "post_analysis_statuses": post_statuses,
+            "post_fully_analyzed": post_statuses.get("completed", 0),
             "same_sha_across_available_versions": all(row["same_sha_across_versions"] for row in rows),
             "groups": grouped, "rows": rows,
             "correct_candidates": None, "missed_candidates": None,
@@ -129,10 +134,12 @@ def compare(v07: Path, v08_old: Path, post: Path) -> dict:
 def markdown(result: dict, style: dict | None = None, gold: dict | None = None) -> str:
     lines = ["# v0.8 整改与 45 样本复测评估", "",
              "## 复测范围与可信边界", "",
-             f"同 SHA-256 清单 45 个；整改后实际保存结果 {result['post_result_files']}/45。"
+             f"同 SHA-256 清单 45 个；整改后结果文件 {result['post_result_files']}/45，"
+             f"主 LLM 完整分析 {result['post_fully_analyzed']}/45。"
              f"可用结果的 SHA 一致性：{'通过' if result['same_sha_across_available_versions'] else '失败'}。",
              "比较四组：v0.7 规则、v0.7 完整 LLM、整改前 v0.8、整改后 v0.8。"
-             "样本未执行，报告侧未重构；原始样本及未脱敏证据只在私有 `data/evaluations/`。", "",
+             "样本未执行，报告侧未重构；原始样本及未脱敏证据只在私有 `data/evaluations/`。"
+             "失败/部分完成的候选仍列在表内，但不能视为完整复测或准确率结论。", "",
              "## 已验证的量化结果", "",
              "下表均为候选记录数，不是正确数、检出率或模型来源判定。", "",
              "| 材料组 | 样本 | 工具链候选（规则 / v0.7 LLM / v0.8 前 / 整改后） | "

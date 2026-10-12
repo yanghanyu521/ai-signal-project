@@ -26,7 +26,9 @@ def audit(output: Path) -> dict:
             result = json.loads((base / "result.json").read_text(encoding="utf-8"))
             materials = json.loads((base / "static_materials.json").read_text(encoding="utf-8"))
             jsonschema.validate(result, schema)
-            if status.get("status") != "completed" or result.get("sample", {}).get("sha256") != sha:
+            if (status.get("status") != "completed"
+                    or status.get("analysis_status") not in {"completed", "unsupported"}
+                    or result.get("sample", {}).get("sha256") != sha):
                 raise ValueError("result_or_status_incomplete")
             if hashlib.sha256(Path(spec["selected_path"]).read_bytes()).hexdigest() != sha:
                 raise ValueError("original_sha_changed")

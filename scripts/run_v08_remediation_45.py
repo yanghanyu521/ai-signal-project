@@ -69,7 +69,7 @@ def run(manifest_path: Path, output: Path, *, max_samples: int | None = None,
         result_file = target / "result.json"
         previous_status = target / "status.json"
         completed_before = (result_file.is_file() and previous_status.is_file() and
-                            json.loads(previous_status.read_text(encoding="utf-8")).get("status") == "completed")
+                            _completed(previous_status))
         if completed_before:
             skipped += 1
             continue
@@ -90,14 +90,18 @@ def run(manifest_path: Path, output: Path, *, max_samples: int | None = None,
             with contextlib.redirect_stdout(io.StringIO()):
                 result = adapter.analyze_sample(path, target)
             run_info = result.get("features", {}).get("static_analysis", {}).get("run", {})
-            status = {"status": "completed", "sha256": sha,
-                      "analysis_status": run_info.get("status"),
+            analysis_status = run_info.get("status")
+            status = {"status": "completed" if analysis_status in {"completed", "unsupported"} else "incomplete",
+                      "sha256": sha, "analysis_status": analysis_status,
                       "elapsed_seconds": round(time.monotonic() - started, 3),
                       "llm_requests": run_info.get("budget", {}).get("requests"),
                       "provider_usage": run_info.get("budget", {}).get("provider_usage", {}),
                       "string_analysis_rate": run_info.get("coverage", {}).get("string_analysis_rate")}
             _write(target / "status.json", status)
-            completed += 1
+            if status["status"] == "completed":
+                completed += 1
+            else:
+                failed += 1
             print(f"[{number}/45] {sha[:12]} {status['analysis_status']} "
                   f"requests={status['llm_requests']} elapsed={status['elapsed_seconds']}s", flush=True)
         except Exception as exc:
@@ -113,7 +117,36 @@ def run(manifest_path: Path, output: Path, *, max_samples: int | None = None,
 
 
 def _completed(path: Path) -> bool:
-    return json.loads(path.read_text(encoding="utf-8")).get("status") == "completed"
+    status = json.loads(path.read_text(encoding="utf-8"))
+    return status.get("status") == "completed" and status.get("analysis_status") in {"completed", "unsupported"}
+
+
+def reconcile_statuses(manifest_path: Path, output: Path) -> dict[str, int]:
+    """Repair old runner bookkeeping from saved results; never calls the LLM."""
+    output = output.resolve()
+    if not output.is_relative_to(PRIVATE):
+        raise ValueError("Raw sample output must stay under private data/evaluations/")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if len(manifest) != 45 or len({item["sha256"] for item in manifest}) != 45:
+        raise ValueError("Expected exactly 45 distinct SHA-256 records")
+    counts = {"completed": 0, "incomplete": 0, "missing": 0}
+    for item in manifest:
+        base = output / "samples" / item["sha256"] / "v08"
+        status_file, result_file = base / "status.json", base / "result.json"
+        if not status_file.is_file() or not result_file.is_file():
+            counts["missing"] += 1
+            continue
+        status = json.loads(status_file.read_text(encoding="utf-8"))
+        result = json.loads(result_file.read_text(encoding="utf-8"))
+        if result.get("sample", {}).get("sha256") != item["sha256"]:
+            counts["missing"] += 1
+            continue
+        analysis_status = result.get("features", {}).get("static_analysis", {}).get("run", {}).get("status")
+        status["analysis_status"] = analysis_status
+        status["status"] = "completed" if analysis_status in {"completed", "unsupported"} else "incomplete"
+        _write(status_file, status)
+        counts[status["status"]] += 1
+    return counts
 
 
 def main() -> None:
@@ -124,7 +157,11 @@ def main() -> None:
     parser.add_argument("--start-index", type=int, default=0, help="inclusive zero-based manifest index")
     parser.add_argument("--end-index", type=int, default=45, help="exclusive zero-based manifest index")
     parser.add_argument("--worker", action="store_true", help="do not rewrite shared manifest or metadata")
+    parser.add_argument("--reconcile-only", action="store_true", help="repair saved statuses without LLM calls")
     args = parser.parse_args()
+    if args.reconcile_only:
+        print(json.dumps(reconcile_statuses(args.manifest, args.output), ensure_ascii=False))
+        return
     if not 0 <= args.start_index <= args.end_index <= 45:
         parser.error("Require 0 <= start-index <= end-index <= 45")
     print(json.dumps(run(args.manifest, args.output, max_samples=args.max_samples,

@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 import httpx
+import pytest
 
 from ai_signal_hub.config import Settings
 from ai_signal_hub.legacy import LegacyAdapters
@@ -214,6 +215,23 @@ def test_deepseek_v4_payload_uses_thinking_and_no_total_budget(monkeypatch) -> N
     assert captured["thinking"] == {"type": "enabled"}
     assert captured["reasoning_effort"] == "low"
     assert "temperature" not in captured
+
+
+def test_sample_llm_payment_error_is_reported_without_retry_or_body() -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(402, json={"error": "sensitive provider body"})
+
+    client = SampleLLMClient(
+        base_url="http://127.0.0.1:11434/v1", model="fixture",
+        api_key=None, allow_remote=False, transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(RuntimeError, match="HTTP 402") as exc:
+        client.analyze([])
+    assert len(calls) == 1
+    assert "sensitive provider body" not in str(exc.value)
 
 
 def test_remote_sample_llm_requires_explicit_policy() -> None:

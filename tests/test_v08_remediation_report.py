@@ -13,7 +13,8 @@ def test_report_never_presents_candidate_volume_as_accuracy() -> None:
         "string_units_screened", "strings_rejected_by_limit", "bytes_scanned",
         "byte_scan_denominator", "archive_members_discovered", "archive_members_considered",
         "archive_members_recovered", "member_rejected_by_limit", "member_bytes_scanned")}
-    result = {"post_result_files": 0, "same_sha_across_available_versions": True,
+    result = {"post_result_files": 0, "post_fully_analyzed": 0,
+              "same_sha_across_available_versions": True,
               "groups": {name: {"samples": 0, "versions": {v: {**count, "llm_statuses": {}} for v in (
                   "v07_rule", "v07_llm", "v08_pre", "v08_post")}}
                   for name in ("script_source", "binary_or_package", "other_or_unresolved")}}
