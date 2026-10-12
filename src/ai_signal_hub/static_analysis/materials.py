@@ -375,7 +375,8 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
             if len(all_members) > len(members):
                 limitations.append("member_limit_reached")
             for info in members:
-                if info.is_dir() or info.file_size > 2 * 1024 * 1024 or info.compress_size == 0 and info.file_size > 0:
+                suffix = info.filename.lower().rsplit(".", 1)[-1] if "." in info.filename else ""
+                if info.is_dir() or info.file_size > 16 * 1024 * 1024 or info.compress_size == 0 and info.file_size > 0:
                     coverage["members_rejected_by_limit"] += 1
                     continue
                 if info.file_size / max(1, info.compress_size) > 100:
@@ -386,10 +387,18 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                     limitations.append("expanded_byte_limit_reached")
                     coverage["members_rejected_by_limit"] += 1
                     break
+                # A PE/ELF can be hidden behind an arbitrary filename. For
+                # members above the ordinary 2 MiB cap, inspect only four
+                # decompressed bytes before allowing a full bounded scan.
+                if info.file_size > 2 * 1024 * 1024:
+                    with archive.open(info) as stream:
+                        magic = stream.read(4)
+                    if not magic.startswith((b"MZ", b"\x7fELF")):
+                        coverage["members_rejected_by_limit"] += 1
+                        continue
                 member = archive.read(info)
                 coverage["members_considered"] += 1
                 total += len(member)
-                suffix = info.filename.lower().rsplit(".", 1)[-1] if "." in info.filename else ""
                 member_language = {"py": "python", "js": "javascript", "mjs": "javascript",
                                    "ps1": "powershell"}.get(suffix)
                 if member_language:
@@ -408,8 +417,9 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                         unit.probable_role = _member_role(info.filename)
                     units.extend(child.units)
                     coverage["members_recovered"] += int(bool(child.units))
-                elif suffix in {"dex", "so", "dll", "arsc", "xml", "json", "txt"}:
-                    child = _string_index(member, {**sample, "file_type": suffix}, suffix)
+                elif suffix in {"dex", "so", "dll", "arsc", "xml", "json", "txt"} or member.startswith((b"MZ", b"\x7fELF")):
+                    member_format = "pe" if member.startswith(b"MZ") else suffix
+                    child = _string_index(member, {**sample, "file_type": member_format}, member_format)
                     coverage["member_bytes_scanned"] += child.recovery_coverage.get("bytes_scanned", 0)
                     for metric in ("strings_discovered", "strings_retained", "strings_rejected_by_limit"):
                         coverage[metric] += child.recovery_coverage.get(metric, 0)

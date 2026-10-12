@@ -351,6 +351,23 @@ def test_archive_member_paths_assign_static_roles() -> None:
     assert roles["examples/demo.py"] == "example"
 
 
+def test_archive_recovers_bounded_large_pe_member_without_execution() -> None:
+    member = b"MZ" + b"\x00" * (2 * 1024 * 1024) + b"fixture-private-model-v1\x00"
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("payload.dat", member)
+        archive.writestr("picture.pif", b"JPEG" + b"\x00" * (2 * 1024 * 1024))
+    sample_info = {"sha256": "a" * 64, "language": None, "file_type": "Zip archive"}
+    index = build_material_index(buffer.getvalue(), sample_info)
+    assert index.status == "partial"
+    assert index.recovery_coverage["members_considered"] == 1
+    assert index.recovery_coverage["members_recovered"] == 1
+    assert index.recovery_coverage["members_rejected_by_limit"] == 1
+    assert index.recovery_coverage["member_bytes_scanned"] == len(member)
+    assert any("fixture-private-model-v1" in unit.content
+               and unit.location["member_path"] == "payload.dat" for unit in index.units)
+
+
 def test_sample_analysis_runs_are_append_only(tmp_path: Path) -> None:
     database = Database(tmp_path / "knowledge.db")
     database.initialize()

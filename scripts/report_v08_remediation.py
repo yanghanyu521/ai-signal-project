@@ -13,7 +13,7 @@ def _read(path: Path) -> dict:
 
 def _group(sample: dict) -> str:
     fmt = sample.get("format")
-    if fmt in {"pe", "elf", "mach_o", "apk", "dex", "python_bytecode"}:
+    if fmt in {"pe", "elf", "mach_o", "apk", "dex", "zip", "python_bytecode"}:
         return "binary_or_package"
     if fmt == "text" and sample.get("recoverability") == "original_source":
         return "script_source"
@@ -139,7 +139,8 @@ def markdown(result: dict, style: dict | None = None, gold: dict | None = None) 
              f"可用结果的 SHA 一致性：{'通过' if result['same_sha_across_available_versions'] else '失败'}。",
              "比较四组：v0.7 规则、v0.7 完整 LLM、整改前 v0.8、整改后 v0.8。"
              "样本未执行，报告侧未重构；原始样本及未脱敏证据只在私有 `data/evaluations/`。"
-             "失败/部分完成的候选仍列在表内，但不能视为完整复测或准确率结论。", "",
+             + ("仍有失败/部分完成的结果，不得视为完整复测。" if result['post_fully_analyzed'] < 45
+                else "45 份主 LLM 运行状态均为 completed；这不等于候选语义正确。"), "",
              "## 已验证的量化结果", "",
              "下表均为候选记录数，不是正确数、检出率或模型来源判定。", "",
              "| 材料组 | 样本 | 工具链候选（规则 / v0.7 LLM / v0.8 前 / 整改后） | "

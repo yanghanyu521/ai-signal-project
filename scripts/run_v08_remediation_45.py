@@ -28,7 +28,8 @@ def _write(path: Path, value: object) -> None:
 
 
 def run(manifest_path: Path, output: Path, *, max_samples: int | None = None,
-        start_index: int = 0, end_index: int = 45, worker: bool = False) -> dict:
+        start_index: int = 0, end_index: int = 45, worker: bool = False,
+        force: bool = False) -> dict:
     output = output.resolve()
     if not output.is_relative_to(PRIVATE):
         raise ValueError("Raw sample output must stay under private data/evaluations/")
@@ -70,7 +71,7 @@ def run(manifest_path: Path, output: Path, *, max_samples: int | None = None,
         previous_status = target / "status.json"
         completed_before = (result_file.is_file() and previous_status.is_file() and
                             _completed(previous_status))
-        if completed_before:
+        if completed_before and not force:
             skipped += 1
             continue
         path = Path(item["selected_path"])
@@ -157,6 +158,7 @@ def main() -> None:
     parser.add_argument("--start-index", type=int, default=0, help="inclusive zero-based manifest index")
     parser.add_argument("--end-index", type=int, default=45, help="exclusive zero-based manifest index")
     parser.add_argument("--worker", action="store_true", help="do not rewrite shared manifest or metadata")
+    parser.add_argument("--force", action="store_true", help="reanalyze selected indices even if already complete")
     parser.add_argument("--reconcile-only", action="store_true", help="repair saved statuses without LLM calls")
     args = parser.parse_args()
     if args.reconcile_only:
@@ -166,7 +168,7 @@ def main() -> None:
         parser.error("Require 0 <= start-index <= end-index <= 45")
     print(json.dumps(run(args.manifest, args.output, max_samples=args.max_samples,
                          start_index=args.start_index, end_index=args.end_index,
-                         worker=args.worker), ensure_ascii=False))
+                         worker=args.worker, force=args.force), ensure_ascii=False))
 
 
 if __name__ == "__main__":
