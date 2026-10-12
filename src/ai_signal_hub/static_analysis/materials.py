@@ -4,6 +4,7 @@ import ast
 import hashlib
 import io
 import re
+import struct
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any
@@ -209,12 +210,38 @@ def _lexical_index(text: str, sha256: str, language: str) -> MaterialIndex:
 
 
 def _string_index(data: bytes, sample: dict[str, Any], language: str = "binary") -> MaterialIndex:
-    from aisig.string_extract import extract_strings
+    from aisig.string_extract import scan_strings
 
     sha256 = str(sample.get("sha256") or "unknown")
     artifact = f"sample:{sha256}"
     units = []
-    for item in extract_strings(data, 512, 4096):
+    pe_sections = _pe_sections(data) if data.startswith(b"MZ") else []
+    strings, coverage = scan_strings(data, 50_000, 4096,
+                                     include_cjk=language in {"arsc", "xml"})
+    for start, end, name in pe_sections:
+        if name != ".rsrc":
+            continue
+        extra, extra_coverage = scan_strings(data[start:end], 10_000, 4096, include_cjk=True)
+        existing = {(item["offset"], item["value"]) for item in strings}
+        for item in extra:
+            item = {**item, "offset": item["offset"] + start}
+            if (item["offset"], item["value"]) not in existing:
+                strings.append(item)
+                existing.add((item["offset"], item["value"]))
+        coverage["resource_scan_bytes"] = end - start
+        coverage["resource_string_candidates"] = extra_coverage["strings_discovered"]
+        coverage["resource_strings_rejected_by_limit"] = extra_coverage["strings_rejected_by_limit"]
+    if data.startswith(b"dex\n"):
+        dex_strings = _dex_string_items(data)
+        coverage["dex_string_ids_recovered"] = len(dex_strings)
+        existing = {(item["offset"], item["value"]) for item in strings}
+        for item in dex_strings:
+            if (item["offset"], item["value"]) not in existing:
+                strings.append(item)
+                existing.add((item["offset"], item["value"]))
+    coverage["strings_retained"] = len(strings)
+    coverage["pe_sections_mapped"] = len(pe_sections)
+    for item in strings:
         content = str(item.get("value") or "")
         if not content:
             continue
@@ -222,16 +249,73 @@ def _string_index(data: bytes, sample: dict[str, Any], language: str = "binary")
         unit = AnalysisUnit(
             _unit_id(sha256, "string", offset, content), artifact, sha256,
             "string", language, "extracted_string", content,
-            {"file_offset": offset, "encoding": item.get("encoding")},
+            {"file_offset": offset, "encoding": item.get("encoding"),
+             **({"pe_section": next((name for start, end, name in pe_sections
+                                    if start <= offset < end), None)} if pe_sections else {})},
             {"tool": "aisig_string_extract", "version": "1", "source_mapping_quality": "exact_offset"},
             parse_status="parsed", limitations=["no_call_relation_from_string_scan"],
         )
         units.append(unit)
     limitations = ["binary_strings_only", "no_static_call_relation_from_strings",
                    "decompilation_disabled_v08"]
+    if coverage["strings_rejected_by_limit"]:
+        limitations.append("string_material_limit_reached")
     return MaterialIndex(sha256, language, "partial" if units else "unsupported",
                          {"text": False, "constants": bool(units), "functions": False,
-                          "xrefs": False, "dataflow": False}, units, limitations)
+                          "xrefs": False, "dataflow": False}, units, limitations,
+                         recovery_coverage=coverage)
+
+
+def _dex_string_items(data: bytes) -> list[dict[str, Any]]:
+    """Recover DEX string_data_id values with exact offsets; never execute DEX."""
+    if len(data) < 0x70 or not data.startswith(b"dex\n"):
+        return []
+    count, table = struct.unpack_from("<II", data, 0x38)
+    if count > 200_000 or table > len(data) or count * 4 > len(data) - table:
+        return []
+    found = []
+    for number in range(count):
+        offset = struct.unpack_from("<I", data, table + number * 4)[0]
+        if offset >= len(data):
+            continue
+        pos = offset
+        for _ in range(5):
+            if pos >= len(data):
+                break
+            byte = data[pos]
+            pos += 1
+            if byte & 0x80 == 0:
+                break
+        end = data.find(b"\x00", pos, min(len(data), pos + 16_384))
+        if end < 0:
+            continue
+        raw = data[pos:end].replace(b"\xc0\x80", b"\x00")
+        value = raw.decode("utf-8", errors="replace")
+        if len(value) >= 4 and sum(ch.isprintable() for ch in value) / len(value) >= 0.8:
+            found.append({"offset": pos, "encoding": "dex_mutf8", "value": value[:4096]})
+    return found
+
+
+def _pe_sections(data: bytes) -> list[tuple[int, int, str]]:
+    """Map recovered strings to PE sections, including .rsrc, when headers exist."""
+    if len(data) < 0x40:
+        return []
+    pe_offset = struct.unpack_from("<I", data, 0x3c)[0]
+    if pe_offset > len(data) - 24 or data[pe_offset:pe_offset + 4] != b"PE\x00\x00":
+        return []
+    count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    base = pe_offset + 24 + optional_size
+    sections = []
+    for number in range(min(count, 96)):
+        pos = base + 40 * number
+        if pos + 40 > len(data):
+            break
+        name = data[pos:pos + 8].rstrip(b"\x00").decode("ascii", errors="replace")
+        size, offset = struct.unpack_from("<II", data, pos + 16)
+        if offset < len(data) and size:
+            sections.append((offset, min(len(data), offset + size), name))
+    return sections
 
 
 def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
@@ -240,7 +324,9 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
     limitations = ["bounded_archive_member_scan", "archive_members_never_executed_or_extracted"]
     total = 0
     coverage = {"members_discovered": 0, "members_considered": 0, "members_recovered": 0,
-                "members_failed": 0, "members_unsupported": 0, "members_rejected_by_limit": 0}
+                "members_failed": 0, "members_unsupported": 0, "members_rejected_by_limit": 0,
+                "member_bytes_scanned": 0, "strings_discovered": 0, "strings_retained": 0,
+                "strings_rejected_by_limit": 0}
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             all_members = archive.infolist()
@@ -292,6 +378,9 @@ def _archive_index(data: bytes, sample: dict[str, Any]) -> MaterialIndex:
                     coverage["members_recovered"] += int(bool(child.units))
                 elif suffix in {"dex", "so", "dll", "arsc", "xml", "json", "txt"}:
                     child = _string_index(member, {**sample, "file_type": suffix}, suffix)
+                    coverage["member_bytes_scanned"] += child.recovery_coverage.get("bytes_scanned", 0)
+                    for metric in ("strings_discovered", "strings_retained", "strings_rejected_by_limit"):
+                        coverage[metric] += child.recovery_coverage.get(metric, 0)
                     for unit in child.units:
                         unit.unit_id = "unit:" + hashlib.sha256(
                             f"{sha256}:{info.filename}:{unit.unit_id}".encode("utf-8")

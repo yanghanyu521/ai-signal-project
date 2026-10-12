@@ -180,7 +180,7 @@ def test_relation_anchor_promotes_llm_candidate_but_not_llm_role_claim(tmp_path:
 def test_sample_llm_reuses_deepseek_defaults_and_cc_api(monkeypatch) -> None:
     for name in ("SAMPLE_LLM_API_KEY", "DEEPSEEK_API_KEY", "SAMPLE_LLM_MODEL",
                  "DEEPSEEK_MODEL", "SAMPLE_LLM_BASE_URL", "DEEPSEEK_BASE_URL",
-                 "SAMPLE_LLM_ALLOW_REMOTE", "SAMPLE_LLM_TRANSFER_POLICY"):
+                 "SAMPLE_LLM_ALLOW_REMOTE", "SAMPLE_LLM_TRANSFER_POLICY", "SAMPLE_LLM_ENABLED"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("cc-api", "fixture-secret")
     settings = Settings()

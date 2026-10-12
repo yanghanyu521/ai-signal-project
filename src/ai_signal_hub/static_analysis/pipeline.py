@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,27 @@ from typing import Any
 from .llm import SampleLLMClient
 from .materials import MaterialIndex, build_material_index, split_large_units
 from .query import StaticQueryService
-from .semantic_discovery import is_ai_toolchain_fact
+from .semantic_discovery import semantic_context_status
+
+
+def _prompt_role(raw: str, context: str, relation_verified: bool) -> str:
+    lowered = raw.casefold()
+    if any(term in lowered for term in (
+        "do not analyze", "ignore your instructions", "ignore previous instructions",
+        "不要分析", "忽略之前的指令", "you are an analyst", "你是分析器",
+    )):
+        return "analyzer_injection"
+    if any(term in lowered for term in (
+        "ignore all previous", "bypass safety", "disregard safety", "jailbreak",
+        "忽略所有之前", "绕过安全", "越狱",
+    )):
+        return "jailbreak_prompt"
+    if relation_verified or any(term in lowered for term in (
+        "summarize", "classify", "generate", "translate", "analyze", "write",
+        "总结", "分类", "生成", "翻译", "分析", "编写",
+    )) or re.search(r"(?i)\b(?:messages|prompt|system)\b", context):
+        return "program_prompt"
+    return "ordinary_text"
 
 
 def _estimate_tokens(text: str) -> int:
@@ -108,14 +129,6 @@ def _validate_facts(
         ):
             rejected.append({"reason": "toolchain_fact_has_no_typed_identity", "candidate": candidate})
             continue
-        if group == "toolchain" and not is_ai_toolchain_fact({
-            "raw_value": raw, "normalized_value": normalized,
-            "type": "model_argument" if normalized.get("model_identifier_raw") else
-                    "service_endpoint" if normalized.get("service_endpoint") else "sdk_call",
-            "discovery_method": "llm",
-        }):
-            rejected.append({"reason": "non_ai_toolchain_identity", "candidate": candidate})
-            continue
         raw_limitations = candidate.get("limitations")
         limitations = (
             [raw_limitations] if isinstance(raw_limitations, str) and raw_limitations.strip()
@@ -130,18 +143,21 @@ def _validate_facts(
         } else "unknown"
         material_roles = {unit.probable_role for unit in containing}
         role = next(iter(material_roles)) if len(material_roles) == 1 else "unknown"
-        if group == "prompt" and any(marker in raw.casefold() for marker in (
-            "do not analyze", "ignore previous instructions", "ignore your instructions",
-            "不要分析", "忽略之前的指令")):
-            role = "analyzer_directive"
-        role_state = "verified" if role != "unknown" else "unknown"
         relation_verified = any(
             _anchor_matches(anchor, group, raw, containing) for anchor in (relation_anchors or [])
         )
+        prompt_role = _prompt_role(raw, material_text, relation_verified) if group == "prompt" else None
+        if prompt_role == "analyzer_injection":
+            role = "analyzer_directive"
+        role_state = "verified" if role != "unknown" else "unknown"
         relation_state = "verified" if relation_verified else "candidate"
+        semantic_status = (semantic_context_status(raw, material_text,
+                           relation_verified=relation_verified) if group == "toolchain" else None)
         attribution_eligible = bool(
             group in {"toolchain", "prompt"}
             and relation_verified and role_state == "verified" and role == "application"
+            and (group != "toolchain" or semantic_status == "static_call_verified")
+            and (group != "prompt" or prompt_role == "program_prompt")
         )
         fact = {
             "fact_id": _fact_id(group, raw, ids), "signal_group": group,
@@ -156,6 +172,8 @@ def _validate_facts(
             "attribution_eligible": attribution_eligible,
             # A model cannot mark its own interpretation as human-reviewed.
             "semantic_review_status": "needs_review",
+            "semantic_confirmation_status": semantic_status,
+            "prompt_role": prompt_role,
             "limitations": limitations,
             "role": role,
             "proposed_role": proposed_role,
@@ -254,6 +272,8 @@ def run_static_analysis(
         "index_status": index.status, "material_artifact": str(material_path.resolve()),
         "coverage": {"indexed_units": len(index.units), "screened_units": 0,
                      "cached_units": 0, "failed_units": 0, "unprocessed_unit_ids": [],
+                     "string_units_indexed": sum(unit.kind == "string" for unit in index.units),
+                     "string_units_screened": 0, "string_units_failed": 0,
                      "recovery_coverage": recovery_coverage,
                      "material_coverage": material_coverage,
                      "relation_coverage": relation_coverage},
@@ -270,6 +290,8 @@ def run_static_analysis(
     if llm_client is None:
         run["limitations"].append("sample_llm_disabled")
         run["coverage"]["unprocessed_unit_ids"] = [unit.unit_id for unit in index.units]
+        run["coverage"]["string_analysis_rate"] = 0.0 if run["coverage"]["string_units_indexed"] else None
+        run["coverage"]["material_analysis_rate"] = 0.0 if index.units else None
         return {"materials": index.public_summary(), "run": run}
     query_service = StaticQueryService(index)
     start = time.monotonic()
@@ -287,6 +309,7 @@ def run_static_analysis(
             run["budget"]["requests"] += 1
             run["budget"]["estimated_tokens_used"] += estimate
             run["coverage"]["screened_units"] += len(batch)
+            run["coverage"]["string_units_screened"] += sum(unit.kind == "string" for unit in batch)
             for key, value in (response.get("usage") or {}).items():
                 if isinstance(value, (int, float)):
                     run["budget"]["provider_usage"][key] = run["budget"]["provider_usage"].get(key, 0) + value
@@ -326,6 +349,7 @@ def run_static_analysis(
             run["rejected_facts"].extend(rejected)
         except Exception as exc:
             run["coverage"]["failed_units"] += len(batch)
+            run["coverage"]["string_units_failed"] += sum(unit.kind == "string" for unit in batch)
             run["errors"].append({"unit_ids": [unit.unit_id for unit in batch],
                                   "error": f"{type(exc).__name__}: {exc}"})
             run["status"] = "partial"
@@ -333,6 +357,15 @@ def run_static_analysis(
             processed_units += len(batch)
     if run["errors"] and run["coverage"]["screened_units"] == 0:
         run["status"] = "failed"
+    total_strings = run["coverage"]["string_units_indexed"]
+    run["coverage"]["string_analysis_rate"] = (
+        round(run["coverage"]["string_units_screened"] / total_strings, 6)
+        if total_strings else None
+    )
+    run["coverage"]["material_analysis_rate"] = (
+        round(run["coverage"]["screened_units"] / len(index.units), 6)
+        if index.units else None
+    )
     if llm_client is not None and hasattr(llm_client, "transfer_metadata"):
         run["llm_transfer"] = llm_client.transfer_metadata()
     run["elapsed_seconds"] = round(time.monotonic() - start, 4)
