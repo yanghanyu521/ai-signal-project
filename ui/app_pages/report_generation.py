@@ -7,7 +7,7 @@ import streamlit as st
 from ui_utils.api import ApiError, api_base_url, post_json
 
 
-st.title("自动生成统计报告")
+st.title(":material/description: 自动生成统计报告")
 st.caption("报告保存生成时的统计快照；选择时间范围后，事件按发生日期过滤，样本、报告、案例和交叉验证按知识库创建日期过滤。")
 
 with st.form("generate_report", border=True):

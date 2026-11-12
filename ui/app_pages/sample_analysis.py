@@ -5,11 +5,17 @@ import streamlit as st
 from ui_utils.api import ApiError, api_base_url, post_file
 
 
-st.title("恶意样本静态分析")
-st.warning("只上传已获授权的样本。平台仅做静态读取，禁止运行、导入、调试、仿真或外传样本。")
+st.title(":material/bug_report: 恶意脚本静态分析")
+st.warning("只上传已获授权的脚本样本（Python/PowerShell/JavaScript/VBScript 等）。平台仅做静态读取，禁止运行、导入、调试、仿真或外传样本；二进制文件不在分析范围内。")
 
 with st.form("sample_upload", border=True):
-    uploaded = st.file_uploader("选择单个样本", accept_multiple_files=False)
+    uploaded = st.file_uploader(
+        "选择单个脚本样本",
+        type=["py", "pyw", "ps1", "psm1", "psd1", "js", "mjs", "cjs", "vbs", "vbe",
+              "sh", "bash", "bat", "cmd", "php", "pl", "rb", "lua", "txt"],
+        accept_multiple_files=False,
+        help="无扩展名脚本可改名后上传；PE/ELF/APK 等二进制会被 API 拒绝。",
+    )
     source_case = st.text_input("来源或案例（可选）", placeholder="例如 PromptLock")
     submitted = st.form_submit_button("开始静态分析", type="primary", icon=":material/bug_report:")
 

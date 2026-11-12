@@ -9,7 +9,7 @@ from ui_utils.presenters import (
 )
 
 
-st.title("样本聚类与关联分析")
+st.title(":material/hub: 样本聚类与关联分析")
 st.caption("工具链事实、Prompt哈希/结构、合格源码统计分别评分后加权合成，再做层次聚类；分数不是同源或AI生成概率。")
 
 try:

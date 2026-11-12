@@ -6,7 +6,7 @@ import streamlit as st
 from ui_utils.api import ApiError, api_base_url, get_json
 
 
-st.title("本地知识库关联检索")
+st.title(":material/database: 本地知识库关联检索")
 st.caption("输入样本名、家族、哈希、模型或报告关键词；结果会沿知识库关系找到匹配样本及其对应报告和目标事件。")
 
 with st.form("knowledge_search", border=False):
