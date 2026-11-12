@@ -1,0 +1,15 @@
+/* Sidebar */
+.ant-layout-sider .ant-menu-item {
+  height: 48px;
+  line-height: 48px;
+  margin-bottom: 4px;
+}
+.ant-layout-sider .ant-menu-item-group-title {
+  font-size: 13px;
+  padding: 14px 24px 8px;
+  color: #94a3b8;
+  letter-spacing: 2px;
+}
+.ant-layout-sider .ant-menu-item .anticon {
+  font-size: 19px;
+}

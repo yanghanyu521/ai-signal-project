@@ -36,21 +36,21 @@ export default function App() {
   const location = useLocation();
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={248} theme="light" style={{ borderRight: '1px solid #ECEEF5' }}>
-        <div style={{ padding: '22px 20px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/logo.png" alt="logo" style={{ width: 44, height: 44, borderRadius: 11 }} />
+      <Sider width={292} theme="light" style={{ borderRight: '1px solid #ECEEF5' }}>
+        <div style={{ padding: '26px 22px 14px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src="/logo.png" alt="logo" style={{ width: 56, height: 56, borderRadius: 14 }} />
           <div>
-            <Typography.Text strong style={{ fontSize: 17, display: 'block' }}>AI 信号提取平台</Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>静态分析 · 报告提取</Typography.Text>
+            <Typography.Text strong style={{ fontSize: 20, display: 'block' }}>AI 信号提取平台</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>静态分析 · 报告提取</Typography.Text>
           </div>
         </div>
-        <div style={{ padding: '0 20px 14px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <Tag color="geekblue">v0.9</Tag>
-          <Tag color="blue">仅脚本样本</Tag>
-          <Tag color="green">纯静态·不外传</Tag>
+        <div style={{ padding: '0 22px 18px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <Tag color="geekblue" style={{ fontSize: 13, padding: '2px 8px' }}>v0.9</Tag>
+          <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>仅脚本样本</Tag>
+          <Tag color="green" style={{ fontSize: 13, padding: '2px 8px' }}>纯静态·不外传</Tag>
         </div>
         <Menu mode="inline" items={menuItems} selectedKeys={[location.pathname]}
-          style={{ borderInlineEnd: 'none', fontSize: 15 }} />
+          style={{ borderInlineEnd: 'none', fontSize: 17 }} />
       </Sider>
       <Layout>
         <Header style={{ padding: '0 28px', height: 56, lineHeight: '56px', borderBottom: '1px solid #ECEEF5' }}>
