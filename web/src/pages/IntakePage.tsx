@@ -72,6 +72,8 @@ export default function IntakePage() {
     <>
       <PageHeader title="样本与报告联合分析"
         description="一个案例代表一组明确对应的样本与技术报告。可以同时上传，也可以先建案例、后续补齐另一侧。" />
+      <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+        message="恶意样本仅做纯静态分析，禁止执行、导入、调试、仿真或上传外部服务；仅分析脚本文件，二进制会被拒绝。" />
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
       <Collapse ghost style={{ marginBottom: 8 }} items={[{
         key: 'guide', label: '操作指引',

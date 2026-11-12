@@ -12,7 +12,7 @@ import KnowledgePage from './pages/KnowledgePage';
 import BaselinePage from './pages/BaselinePage';
 import ReportGenerationPage from './pages/ReportGenerationPage';
 
-const { Sider, Content, Header } = Layout;
+const { Sider, Content } = Layout;
 
 const menuItems = [
   { key: 'group-overview', type: 'group' as const, label: '总览', children: [
@@ -36,7 +36,8 @@ export default function App() {
   const location = useLocation();
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={292} theme="light" style={{ borderRight: '1px solid #ECEEF5' }}>
+      <Sider width={292} theme="light" breakpoint="lg" collapsedWidth={72}
+        style={{ borderRight: '1px solid #ECEEF5' }}>
         <div style={{ padding: '26px 22px 14px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <img src="/logo.png" alt="logo" style={{ width: 56, height: 56, borderRadius: 14 }} />
           <div>
@@ -53,12 +54,7 @@ export default function App() {
           style={{ borderInlineEnd: 'none', fontSize: 17 }} />
       </Sider>
       <Layout>
-        <Header style={{ padding: '0 28px', height: 56, lineHeight: '56px', borderBottom: '1px solid #ECEEF5' }}>
-          <Typography.Text type="secondary">
-            恶意样本仅做纯静态分析，禁止执行、导入、调试、仿真或上传外部服务
-          </Typography.Text>
-        </Header>
-        <Content style={{ padding: '24px 28px', maxWidth: 1560, width: '100%', margin: '0 auto' }}>
+        <Content style={{ padding: '28px 32px', maxWidth: 1600, width: '100%', margin: '0 auto' }}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/intake" element={<IntakePage />} />

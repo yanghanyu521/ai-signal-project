@@ -14,16 +14,24 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         token: {
           colorPrimary: '#4F46E5',
           colorInfo: '#4F46E5',
-          borderRadius: 10,
+          colorSuccess: '#16A34A',
+          colorWarning: '#D97706',
+          colorError: '#DC2626',
+          borderRadius: 8,
+          borderRadiusLG: 12,
           fontSize: 14,
-          colorText: '#1E293B',
-          colorBgLayout: '#F5F6FA',
+          colorText: '#111827',
+          colorTextSecondary: '#6B7280',
+          colorBorder: '#E5E7EB',
+          colorBorderSecondary: '#F0F1F5',
+          colorBgLayout: '#F5F7FB',
           fontFamily:
             "-apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif",
         },
         components: {
           Layout: { siderBg: '#FFFFFF', headerBg: '#FFFFFF' },
           Menu: { itemSelectedBg: '#EEF0FE', itemSelectedColor: '#4F46E5' },
+          Card: { paddingLG: 24 },
         },
       }}
     >

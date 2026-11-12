@@ -1,15 +1,149 @@
-/* Sidebar */
+/* Design tokens — single source of truth for color, spacing and typography.
+   Ant Design tokens in main.tsx mirror the values below. */
+:root {
+  --color-primary: #4F46E5;
+  --color-primary-hover: #4338CA;
+  --color-bg: #F5F7FB;
+  --color-surface: #FFFFFF;
+  --color-text: #111827;
+  --color-text-secondary: #6B7280;
+  --color-border: #E5E7EB;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04);
+
+  --font-page-title: 26px;
+  --font-section-title: 17px;
+  --font-body: 14px;
+  --font-caption: 13px;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ---------- Sidebar ---------- */
+.ant-layout-sider {
+  box-shadow: none;
+}
 .ant-layout-sider .ant-menu-item {
-  height: 48px;
-  line-height: 48px;
-  margin-bottom: 4px;
+  height: 46px;
+  line-height: 46px;
+  margin-bottom: 2px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.ant-layout-sider .ant-menu-item:hover {
+  background: #F0F1FA;
+}
+.ant-layout-sider .ant-menu-item-selected {
+  background: #EEF0FE !important;
+  font-weight: 600;
 }
 .ant-layout-sider .ant-menu-item-group-title {
-  font-size: 13px;
-  padding: 14px 24px 8px;
-  color: #94a3b8;
-  letter-spacing: 2px;
+  font-size: 12px;
+  padding: 16px 24px 6px;
+  color: #9CA3AF;
+  letter-spacing: 1.5px;
 }
 .ant-layout-sider .ant-menu-item .anticon {
-  font-size: 19px;
+  font-size: 18px;
+}
+
+/* ---------- Cards ---------- */
+.ant-card {
+  border-radius: var(--radius-card);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.ant-card .ant-card-head {
+  font-size: var(--font-section-title);
+  padding: 0 24px;
+  border-bottom-color: #F0F1F5;
+}
+.ant-card .ant-card-body {
+  padding: 20px 24px;
+}
+.ant-card-small .ant-card-head {
+  min-height: 46px;
+}
+.ant-card-small .ant-card-body {
+  padding: 16px 20px;
+}
+
+/* ---------- Tables ---------- */
+.ant-table {
+  font-size: 14px;
+}
+.ant-table-thead > tr > th {
+  background: #F9FAFB !important;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 13px;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+.ant-table-tbody > tr > td {
+  border-bottom-color: #F0F1F5;
+  padding: 12px 16px !important;
+}
+.ant-table-tbody > tr:hover > td {
+  background: #F8F9FD !important;
+}
+
+/* ---------- Controls ---------- */
+.ant-btn {
+  font-weight: 500;
+}
+.ant-btn-primary:hover {
+  background: var(--color-primary-hover) !important;
+}
+.ant-input, .ant-select-selector, .ant-picker {
+  border-radius: var(--radius-control) !important;
+}
+.ant-input:hover, .ant-select-selector:hover, .ant-picker:hover {
+  border-color: #A5B4FC !important;
+}
+.ant-input:focus, .ant-input-focused,
+.ant-select-focused .ant-select-selector, .ant-picker-focused {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12) !important;
+}
+
+/* ---------- Statistic ---------- */
+.ant-statistic-title {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.ant-statistic-content {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+/* ---------- Tabs ---------- */
+.ant-tabs-tab {
+  font-size: 15px;
+}
+
+/* ---------- Upload ---------- */
+.ant-upload-wrapper .ant-upload-drag {
+  border-radius: var(--radius-card);
+  background: #FAFBFE;
+  border-color: #D9DDE8;
+}
+.ant-upload-wrapper .ant-upload-drag:hover {
+  border-color: var(--color-primary);
+}
+
+/* ---------- Alert / misc ---------- */
+.ant-alert {
+  border-radius: var(--radius-control);
+  font-size: 14px;
+}
+pre {
+  tab-size: 2;
 }
