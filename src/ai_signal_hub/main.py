@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from contextlib import asynccontextmanager
 from datetime import date
@@ -19,6 +20,15 @@ from .repository import Repository
 from .report_llm import ReportModelConfigurationError, ReportModelError
 from .services import HubService
 from .storage import UploadTooLarge
+
+
+logger = logging.getLogger("ai_signal_hub.api")
+
+
+def _internal_error(operation: str, exc: Exception) -> HTTPException:
+    # Log the full exception server-side; do not echo internals to clients.
+    logger.exception("%s: %s", operation, exc)
+    return HTTPException(status_code=500, detail=f"{operation}，详情请查看服务端日志")
 
 
 database = Database(settings.database_path)
@@ -93,10 +103,12 @@ def analyze_sample(
         return service.analyze_sample(file.file, file.filename, source_case)
     except UploadTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LegacyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"样本静态分析失败: {exc}") from exc
+        raise _internal_error("样本静态分析失败", exc) from exc
 
 
 @app.get("/api/v1/samples", tags=["samples"])
@@ -135,8 +147,10 @@ def reanalyze_sample(sha256: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"样本重新分析失败: {exc}") from exc
+        raise _internal_error("样本重新分析失败", exc) from exc
 
 
 @app.get("/api/v1/samples/{sha256}/associations", tags=["samples"])
@@ -170,7 +184,7 @@ def recluster_samples() -> dict:
     try:
         return service.similarity.rebuild()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"样本聚类失败: {exc}") from exc
+        raise _internal_error("样本聚类失败", exc) from exc
 
 
 @app.post("/api/v1/reports/analyze", tags=["reports"])
@@ -202,7 +216,7 @@ def analyze_report(
     except LegacyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"报告抽取失败: {exc}") from exc
+        raise _internal_error("报告抽取失败", exc) from exc
 
 
 @app.get("/api/v1/reports", tags=["reports"])
@@ -271,7 +285,7 @@ def analyze_case(
     except LegacyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"联合分析失败: {exc}") from exc
+        raise _internal_error("联合分析失败", exc) from exc
 
 
 @app.get("/api/v1/analysis-cases", tags=["analysis-cases"])
@@ -299,7 +313,7 @@ def cross_validate(request: CrossValidationRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"交叉验证失败: {exc}") from exc
+        raise _internal_error("交叉验证失败", exc) from exc
 
 
 @app.post("/api/v1/analysis-cases/{case_id}/cross-validate", tags=["validation"])
@@ -311,7 +325,7 @@ def cross_validate_case(case_id: str, request: CaseCrossValidationRequest) -> di
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"案例交叉验证失败: {exc}") from exc
+        raise _internal_error("案例交叉验证失败", exc) from exc
 
 
 @app.get("/api/v1/knowledge/search", tags=["knowledge"])
@@ -324,7 +338,7 @@ def import_legacy(request: LegacyImportRequest = Body(default_factory=LegacyImpo
     try:
         return service.import_legacy(**request.model_dump())
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"旧项目导入失败: {exc}") from exc
+        raise _internal_error("旧项目导入失败", exc) from exc
 
 
 @app.patch("/api/v1/events/{event_id}/context", tags=["knowledge"])
@@ -359,7 +373,7 @@ def generate_report(request: GeneratedReportRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"统计报告生成失败: {exc}") from exc
+        raise _internal_error("统计报告生成失败", exc) from exc
 
 
 @app.get("/api/v1/generated-reports", tags=["generated-reports"])

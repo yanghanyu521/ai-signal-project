@@ -227,14 +227,33 @@ def test_empty_samples_are_singletons_and_api_explains_no_features(platform, mon
 
 def test_threshold_changes_clustering_not_candidate_visibility(platform):
     _, repo = platform
-    a, b = sample(model=None, prompt=False), sample("b", model=None, prompt=False)
+    a, b = sample(prompt=False), sample("b", prompt=False)
+    for result, vendor in ((a, "V"), (b, "W")):
+        result["features"]["code_style"] = {}
+        result["features"]["toolchain"] = {"evidence": [
+            {"type": "model_identifier", "normalized": {"model": "MODEL_A", "vendor": vendor}}]}
     put(repo, a, b)
     SampleSimilarityService(repo, distance_threshold=.45).rebuild()
     first = repo.sample_associations("a" * 64)["related_samples"][0]
-    assert first["overall_similarity"] == .2 and not first["same_cluster"]
+    # Weighted-Jaccard toolchain .5 x weight .5: raw overall .25, conditional .5.
+    assert first["overall_similarity"] == .25 and first["conditional_similarity"] == .5
+    assert not first["same_cluster"]
     SampleSimilarityService(repo, distance_threshold=.9).rebuild()
     second = repo.sample_associations("a" * 64)["related_samples"][0]
-    assert second["overall_similarity"] == .2 and second["same_cluster"]
+    assert second["overall_similarity"] == .25 and second["same_cluster"]
+
+
+def test_insufficient_coverage_pairs_do_not_cluster(platform):
+    _, repo = platform
+    a, b = sample(model=None, prompt=False), sample("b", model=None, prompt=False)
+    put(repo, a, b)
+    SampleSimilarityService(repo, distance_threshold=.95).rebuild()
+    pair = repo.sample_associations("a" * 64)["related_samples"][0]
+    # Only the code-style group (weight .2) is comparable: below MIN_COMPARABLE_WEIGHT.
+    assert pair["conditional_similarity"] == 1
+    assert pair["cluster_distance"] == 1.0
+    assert pair["cluster_distance_basis"] == "insufficient_comparable_weight"
+    assert not pair["same_cluster"]
 
 
 def test_corpus_outlier_does_not_change_existing_pair_and_raw_results_unchanged(platform):

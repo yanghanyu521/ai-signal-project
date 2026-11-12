@@ -294,15 +294,14 @@ def test_api_adapter_saves_new_prompt_fields(platform):
 
 
 def test_uniform_container_markers_do_not_require_decompiler(platform, monkeypatch):
+    # Scope change: packed/binary containers are no longer analyzed. The
+    # upload gate must reject them instead of running container recovery.
+    import pytest
     service,_=platform
     import shutil
     monkeypatch.setattr(shutil,'which',lambda name:None)
     text='Make a list of commands to show the time. Return only commands.'
     payload=b'\0gpt-3.5-turbo\0'+base64.b64encode(text.encode())+b'\0'
     data=carchive(payload)
-    saved=service.analyze_sample(io.BytesIO(data),'fixture.exe','Fixture')
-    result=service.repository.get_sample(saved['sha256'])['result_json']
-    assert result['features']['prompt']['embedded_prompts']
-    assert result['features']['toolchain']['evidence']
-    assert result['features']['recovery']['static_toolchain']['decompiler_required'] is False
-    assert not result['features']['code_style']['metrics']
+    with pytest.raises(ValueError, match='仅分析脚本文件'):
+        service.analyze_sample(io.BytesIO(data),'fixture.exe','Fixture')

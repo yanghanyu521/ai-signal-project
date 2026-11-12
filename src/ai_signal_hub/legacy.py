@@ -124,7 +124,53 @@ class LegacyAdapters:
                 write_artifacts(artifact_dir, enhanced, strings,
                                 self.settings.legacy_sample_project / "schemas" / "result.schema.json")
             result = enhanced
+        self._run_script_llm_extraction(result, sample_path, artifact_dir)
         return result
+
+    def _run_script_llm_extraction(
+        self, result: dict[str, Any], sample_path: Path, artifact_dir: Path
+    ) -> None:
+        """Optional LLM pass for in-scope scripts; deterministic facts are kept
+        regardless of configuration, policy or model failures."""
+        features = result.setdefault("features", {})
+        record: dict[str, Any]
+        try:
+            if not self.settings.sample_llm_enabled:
+                record = {"status": "disabled"}
+            else:
+                from .static_analysis.llm import SampleLLMClient
+                from .static_analysis.script_extract import extract_script_features
+                endpoint = urlparse(self.settings.sample_llm_base_url)
+                remote = endpoint.hostname not in {"127.0.0.1", "localhost", "::1"}
+                if remote and (
+                    not self.settings.sample_llm_allow_remote
+                    or self.settings.sample_llm_transfer_policy == "local_only"
+                ):
+                    record = {"status": "blocked", "destination": "blocked",
+                              "policy": self.settings.sample_llm_transfer_policy}
+                elif not self.settings.sample_llm_api_key or not self.settings.sample_llm_model.strip():
+                    record = {"status": "not_configured"}
+                else:
+                    client = SampleLLMClient(
+                        base_url=self.settings.sample_llm_base_url,
+                        model=self.settings.sample_llm_model,
+                        api_key=self.settings.sample_llm_api_key,
+                        allow_remote=self.settings.sample_llm_allow_remote,
+                        transfer_policy=self.settings.sample_llm_transfer_policy,
+                        timeout_seconds=self.settings.sample_llm_timeout_seconds,
+                        max_output_tokens=self.settings.sample_llm_max_output_tokens,
+                    )
+                    record = {"status": "completed",
+                              **extract_script_features(sample_path, client)}
+        except Exception as exc:
+            record = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+        features["llm_script_extraction"] = record
+        try:
+            (artifact_dir / "result.json").write_text(
+                json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except OSError:
+            pass
 
     def _run_semantic_static_analysis(
         self, result: dict[str, Any], data: bytes, artifact_dir: Path

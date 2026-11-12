@@ -104,7 +104,7 @@ FruitShell静态规则已补齐：PowerShell多线索识别、代码词法统计
 - `POST /api/v1/cross-validations`：对一个样本结果和报告事件进行证据对照。
 - `PATCH /api/v1/events/{event_id}/context`：人工修订相关组织和国家/地区并永久写入知识库，同时保留报告抽取原值。
 - `GET /api/v1/knowledge/search`：以样本/家族为中心检索，并沿分析案例和目标事件关系返回对应报告。
-- `GET /api/v1/statistics/overview`：获取 25 个全球事件、9 个可分析事件、45 个样本以及报告、模型归因和月增长等分口径指标。
+- `GET /api/v1/statistics/overview`：获取事件库 46 个事件、11 个可分析事件，以及 45 个已分析样本、实际入库报告、模型归因和月增长等分口径指标；`catalog_*` 为事件库范围，非入库完成数。
 - `POST /api/v1/generated-reports`：按当前知识库快照填充统计报告模板。
 - `POST /api/v1/knowledge/import-legacy`：从仓库内置种子数据初始化既有结构化知识（保留接口名以兼容原调用方）。
 

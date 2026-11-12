@@ -435,6 +435,14 @@ class Repository:
             report["events"] = self.db.rows(events)
             return report
 
+    def find_report_by_content_hash(self, content_sha256: str) -> dict[str, Any] | None:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT report_id FROM reports WHERE content_sha256=? ORDER BY created_at LIMIT 1",
+                (content_sha256.lower(),),
+            ).fetchone()
+        return self.get_report(row["report_id"]) if row else None
+
     def list_reports(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         with self.db.connect() as connection:
             rows = connection.execute(
@@ -812,8 +820,14 @@ class Repository:
                 if comparison["status"] == "not_comparable":
                     item["overall_similarity"] = None
                 item["comparable_weight"] = comparison["comparable_weight"]
+                item["conditional_similarity"] = comparison.get("conditional_similarity")
+                item["cluster_distance"] = comparison.get("cluster_distance")
+                item["cluster_distance_basis"] = comparison.get("cluster_distance_basis")
             else:
                 item["comparable_weight"] = None
+                item["conditional_similarity"] = None
+                item["cluster_distance"] = None
+                item["cluster_distance_basis"] = None
         cluster_result = self.db.row(cluster, ("details_json",))
         diagnostic = cluster_result.pop("details_json") if cluster_result else {}
         run_result = self.db.row(run, ("details_json",))
@@ -846,7 +860,7 @@ class Repository:
             "association_summary": {"evaluated_pairs": len(relations), "comparable_pairs": comparable_count,
                                     "positive_pairs": len(positives), "include_unmatched": include_unmatched},
             "related_samples": (relations if include_unmatched else positives)[:limit],
-            "interpretation": "总分按固定权重合成，缺失组不重分配权重；null表示不可比较，0表示可比但无匹配；非同源、同模型或AI生成概率。",
+            "interpretation": "总分按固定权重合成，缺失组计零不重分配；聚类距离改用覆盖率归一化分数，可比权重不足的样本对不参与聚类；null表示不可比较，0表示可比但无匹配；非同源、同模型或AI生成概率。",
         }
 
     def search(self, query: str, limit: int = 50) -> dict[str, Any]:
@@ -1129,8 +1143,8 @@ class Repository:
                 "SELECT metric_key,metric_value FROM knowledge_metrics"
             ).fetchall()
             business_metrics = {row["metric_key"]: int(row["metric_value"]) for row in metric_rows}
-            global_events = business_metrics.get("global_ai_security_events", 25)
-            analyzable_events = business_metrics.get("analyzable_events", 9)
+            global_events = business_metrics.get("global_ai_security_events", 46)
+            analyzable_events = business_metrics.get("analyzable_events", 11)
             if analyzable_events > global_events:
                 raise ValueError("知识范围指标异常：可分析事件数不能超过全球事件总数")
             validation_rows = connection.execute(
@@ -1155,6 +1169,9 @@ class Repository:
                 "global_ai_security_events": global_events,
                 "analyzable_events": analyzable_events,
                 "events_without_samples": global_events - analyzable_events,
+                "catalog_sample_families": business_metrics.get("catalog_sample_families", 11),
+                "catalog_logical_reports": business_metrics.get("catalog_logical_reports", 9),
+                "catalog_family_report_mappings": business_metrics.get("catalog_family_report_mappings", 11),
                 "curated_research_events": curated_events,
                 "event_records": event_records,
                 "report_event_records": connection.execute(
@@ -1211,7 +1228,7 @@ class Repository:
         previous_count = monthly.get(previous_month, 0)
         growth_rate = None if previous_count == 0 else (current_count - previous_count) / previous_count * 100
         return {
-            "scope": "全球事件与可分析事件采用知识范围业务口径且为全量值；样本家族按样本来源标注统计；报告按规范化标题逻辑去重；数据库事件物理记录分来源审计；日期筛选只作用于知识库记录型指标",
+            "scope": "事件库总量、可分析事件及 catalog_* 采用全量业务口径；samples、sample_families、logical_reports、family_report_mappings 为实际入库记录；历史研究事件单独审计；日期筛选只作用于知识库记录型指标",
             "as_of": now.isoformat(),
             "range": {"date_from": date_from, "date_to": date_to},
             "totals": totals,

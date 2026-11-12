@@ -9,15 +9,15 @@
 
 ## 一、执行摘要
 
-本地知识库当前业务口径共记录 **{{ totals.global_ai_security_events }}** 个全球 AI 安全事件，其中 **{{ totals.analyzable_events }}** 个事件具有样本、可以开展静态分析，另有 **{{ totals.events_without_samples }}** 个事件暂无样本。可分析事件对应 **{{ totals.sample_families }}** 个样本家族，共包含 **{{ totals.samples }}** 个已分析样本。
+本地知识库关联的当前事件库业务口径共搜罗 **{{ totals.global_ai_security_events }}** 个 AI 相关安全事件，其中 **{{ totals.analyzable_events }}** 个事件有样本线索、具备分析条件，另有 **{{ totals.events_without_samples }}** 个事件暂无样本。可分析事件对应 **{{ totals.catalog_sample_families }}** 个样本家族；其中已实际分析入库 **{{ totals.sample_families }}** 个家族、**{{ totals.samples }}** 个样本。新增的 CLOSEDQUORUM 与 CL-UNK-1211 样本尚未下载分析。
 
-在本报告筛选范围内，知识库保存 **{{ totals.report_records }}** 条报告记录，按规范化标题逻辑去重后为 **{{ totals.logical_reports }}** 份报告；已建立 **{{ totals.family_report_mappings }}** 组家族—报告映射、**{{ totals.analysis_cases }}** 个分析案例。交叉验证表保留 **{{ totals.cross_validation_records }}** 条执行记录。
+事件库范围对应 **{{ totals.catalog_logical_reports }}** 份去重报告、**{{ totals.catalog_family_report_mappings }}** 组家族—报告映射。当前筛选范围内，知识库实际保存 **{{ totals.report_records }}** 条报告记录，按规范化标题逻辑去重后已入库 **{{ totals.logical_reports }}** 份；已入库 **{{ totals.family_report_mappings }}** 组家族—报告映射、**{{ totals.analysis_cases }}** 个分析案例。交叉验证表保留 **{{ totals.cross_validation_records }}** 条执行记录。新增两家族的报告尚未抽取入库。
 
 知识库另外保存 **{{ totals.curated_research_events }}** 条来自早期研究 CSV 的历史研究事件，以及 **{{ totals.report_event_records }}** 条由报告定向抽取得到的事件证据记录。两类记录来源和用途不同，不与样本家族数相加。
 
 本月知识库新增历史研究事件 **{{ monthly.current_count }}** 条，上月新增 **{{ monthly.previous_count }}** 条，{% if monthly.growth_rate is not none %}环比 {{ "%.1f"|format(monthly.growth_rate) }}%{% else %}上月基数为 0，本月绝对新增 {{ monthly.growth_absolute }} 条，不计算环比百分比{% endif %}。
 
-> 口径说明：25 个全球事件与 9 个可分析事件采用当前知识范围业务口径；历史研究事件来自 `ai_signal_demo/week1_research/ai_attack_events.csv`，仅用于研究背景，不能与报告事件证据行相加。
+> 口径说明：46 个事件、11 个可分析事件、11 个家族、9 份去重报告和 11 组映射来自当前事件库业务范围；已分析/已入库数量取自本地数据库，不能混作同一完成度。历史研究事件仅用于研究背景，不能与报告事件证据行相加。
 
 ## 二、样本分析覆盖
 

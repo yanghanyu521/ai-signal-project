@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import re
+import threading
 from collections import Counter
 from typing import Any
 from urllib.parse import urlsplit
@@ -16,11 +17,16 @@ from .static_analysis.semantic_discovery import is_ai_toolchain_fact
 from .stylometry.similarity import compare_fingerprints
 
 
-ALGORITHM_VERSION = "ai-signal-evidence-pairwise-v0.8"
+ALGORITHM_VERSION = "ai-signal-evidence-pairwise-v0.8.1"
 GROUP_WEIGHTS = {"toolchain": 0.5, "prompt": 0.3, "code_style": 0.2}
 SIMHASH_ALGORITHM = "simhash64_normalized_tokens_v1"
 SIMHASH_MAX_DISTANCE = 8
 STRUCTURE_ONLY_CAP = 0.2
+# Clustering distance is 1 - conditional_similarity (the fused score divided by
+# the comparable weight coverage). Pairs below this coverage carry too little
+# shared evidence for a distance to be meaningful, so they are parked at
+# distance 1.0 instead of being pushed apart only because evidence is missing.
+MIN_COMPARABLE_WEIGHT = 0.3
 TOOL_WEIGHTS = {"vendor": 1.0, "family": 1.5, "model": 2.0,
                 "sdk": 1.0, "sdk_vendor": 1.0, "endpoint": 1.5,
                 "service": 1.5, "ai_cli": 1.0}
@@ -350,50 +356,73 @@ def profile_diagnostics(profile: dict) -> dict:
 
 
 class SampleSimilarityService:
-    def __init__(self, repository: Repository, distance_threshold: float = 0.45, weights: dict | None = None):
+    def __init__(self, repository: Repository, distance_threshold: float = 0.45,
+                 weights: dict | None = None, min_comparable_weight: float = MIN_COMPARABLE_WEIGHT):
         if not _number(distance_threshold) or not 0 < distance_threshold < 1:
             raise ValueError("聚类距离阈值必须大于0且小于1")
+        if not _number(min_comparable_weight) or not 0 < min_comparable_weight <= 1:
+            raise ValueError("聚类可比权重下限必须大于0且不超过1")
         self.repository = repository
         self.distance_threshold = distance_threshold
         self.weights = _weights(weights)
+        self.min_comparable_weight = float(min_comparable_weight)
+        self.lock = threading.RLock()
 
     def rebuild(self) -> dict[str, Any]:
-        samples = self.repository.all_sample_results()
-        if not samples:
-            return {"algorithm_version": ALGORITHM_VERSION, "sample_count": 0, "cluster_count": 0}
-        shas = [item["sha256"] for item in samples]
-        profiles = [sample_profile(item["result_json"]) for item in samples]
-        distances = np.ones((len(samples), len(samples)))
-        np.fill_diagonal(distances, 0.0)
-        relations = []
-        for left in range(len(samples)):
-            for right in range(left + 1, len(samples)):
-                result = compare_profiles(profiles[left], profiles[right], self.weights)
-                score = result["overall_similarity"] or 0.0
-                distances[left, right] = distances[right, left] = max(0.0, 1 - score)
-                relations.append({"source_sample_id": shas[left], "target_sample_id": shas[right], **result})
-        if len(samples) == 1:
-            raw_labels = np.array([0])
-        else:
-            raw_labels = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average",
-                                                distance_threshold=self.distance_threshold).fit_predict(distances)
-        members = {}
-        for sha, label in zip(shas, raw_labels, strict=True):
-            members.setdefault(int(label), []).append(sha)
-        label_map = {label: f"C{index:03d}" for index, label in enumerate(sorted(members, key=lambda k: min(members[k])), 1)}
-        labels = {sha: label_map[int(label)] for sha, label in zip(shas, raw_labels, strict=True)}
-        sizes = Counter(labels.values())
-        for relation in relations:
-            relation["same_cluster"] = labels[relation["source_sample_id"]] == labels[relation["target_sample_id"]]
-        run = self.repository.replace_sample_similarity(
-            algorithm_version=ALGORITHM_VERSION, distance_threshold=self.distance_threshold,
-            clusters=[{"sample_id": sha, "cluster_label": labels[sha], "cluster_size": sizes[labels[sha]],
-                       "details": profile_diagnostics(profile)} for sha, profile in zip(shas, profiles, strict=True)],
-            relations=relations, expected_samples=samples, details={"weights": self.weights, "distance": "1-fixed_weight_similarity",
-                "linkage": "average", "simhash_max_distance": SIMHASH_MAX_DISTANCE,
-                "structure_only_cap": STRUCTURE_ONLY_CAP, "corpus_scaling": False,
-                "synthetic_features": False, "threshold_calibration": "engineering_default_not_benchmark_calibrated"})
-        return {**run, "weights": self.weights, "interpretation": "证据候选关联，不是同源、同模型或AI生成概率"}
+        with self.lock:
+            samples = self.repository.all_sample_results()
+            if not samples:
+                return {"algorithm_version": ALGORITHM_VERSION, "sample_count": 0, "cluster_count": 0}
+            shas = [item["sha256"] for item in samples]
+            profiles = [sample_profile(item["result_json"]) for item in samples]
+            distances = np.ones((len(samples), len(samples)))
+            np.fill_diagonal(distances, 0.0)
+            relations = []
+            for left in range(len(samples)):
+                for right in range(left + 1, len(samples)):
+                    result = compare_profiles(profiles[left], profiles[right], self.weights)
+                    details = result["details"]
+                    coverage = details["comparable_weight"]
+                    conditional = details["conditional_similarity"]
+                    if conditional is not None and coverage >= self.min_comparable_weight:
+                        distance = max(0.0, 1 - conditional)
+                        basis = "conditional_similarity"
+                    else:
+                        # Missing evidence must not push samples apart, and weak
+                        # coverage must not pull them together: no usable distance.
+                        distance = 1.0
+                        basis = "not_comparable" if conditional is None else "insufficient_comparable_weight"
+                    details["cluster_distance"] = distance
+                    details["cluster_distance_basis"] = basis
+                    details["min_comparable_weight"] = self.min_comparable_weight
+                    distances[left, right] = distances[right, left] = distance
+                    relations.append({"source_sample_id": shas[left], "target_sample_id": shas[right], **result})
+            if len(samples) == 1:
+                raw_labels = np.array([0])
+            else:
+                raw_labels = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average",
+                                                    distance_threshold=self.distance_threshold).fit_predict(distances)
+            members = {}
+            for sha, label in zip(shas, raw_labels, strict=True):
+                members.setdefault(int(label), []).append(sha)
+            label_map = {label: f"C{index:03d}" for index, label in enumerate(sorted(members, key=lambda k: min(members[k])), 1)}
+            labels = {sha: label_map[int(label)] for sha, label in zip(shas, raw_labels, strict=True)}
+            sizes = Counter(labels.values())
+            for relation in relations:
+                relation["same_cluster"] = labels[relation["source_sample_id"]] == labels[relation["target_sample_id"]]
+            run = self.repository.replace_sample_similarity(
+                algorithm_version=ALGORITHM_VERSION, distance_threshold=self.distance_threshold,
+                clusters=[{"sample_id": sha, "cluster_label": labels[sha], "cluster_size": sizes[labels[sha]],
+                           "details": profile_diagnostics(profile)} for sha, profile in zip(shas, profiles, strict=True)],
+                relations=relations, expected_samples=samples, details={"weights": self.weights,
+                    "distance": "1-conditional_similarity_when_coverage>=min_else_1.0",
+                    "min_comparable_weight": self.min_comparable_weight,
+                    "linkage": "average", "simhash_max_distance": SIMHASH_MAX_DISTANCE,
+                    "structure_only_cap": STRUCTURE_ONLY_CAP, "corpus_scaling": False,
+                    "synthetic_features": False,
+                    "threshold_calibration": "engineering_default_not_benchmark_calibrated"})
+            return {**run, "weights": self.weights, "min_comparable_weight": self.min_comparable_weight,
+                    "interpretation": "证据候选关联，不是同源、同模型或AI生成概率"}
 
     def associations(self, sha256: str, limit: int = 10, include_unmatched: bool = False) -> dict[str, Any]:
         return self.repository.sample_associations(sha256, limit, include_unmatched=include_unmatched)
