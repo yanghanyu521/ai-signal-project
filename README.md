@@ -6,7 +6,9 @@
 - 报告侧只从报告原文中提取事件、攻击者/目标、AI 参与方式、样本/IOC、工具链、Prompt 和局限，并保留原文证据引用。
 - 交叉验证结果作为第三类数据单独保存，使用 `supports / contradicts / complements / inconclusive`，不会覆盖任一原始结果。
 
-当前版本提供 FastAPI、SQLite 本地知识库、联合分析案例、历史结果导入、样本自动聚类关联、统计与 Markdown 报告生成，以及 Streamlit 测试界面。
+当前版本提供 FastAPI、SQLite 本地知识库、联合分析案例、历史结果导入、样本自动聚类关联、统计与 Markdown 报告生成，以及 React 主界面（Streamlit 测试界面保留备用）。
+
+v0.9.0：样本分析范围收敛为脚本文件（PE/ELF/APK 等二进制不再分析，上传返回 400）；新增带确定性证据校验的样本侧 LLM 提取（`features.llm_script_extraction`）、19 个真实脚本人工基准与评分工具（`evaluation/script_baseline/`），首轮真实模型运行 19/19 通过基准检查；前端迁移为 React + Vite + TypeScript + Ant Design（`web/`）。详见 [仅脚本与LLM提取整改](docs/28_仅脚本与LLM提取整改_20261112.md)。
 
 v0.8.0：样本侧改为原始源码增强分析与二进制字符串分析双路径；新增独立、可重复的文件/局部代码文体指纹及只读文体近邻检索。v0.8 不调用 Ghidra/JADX，不凭二进制字符串产生代码文体指纹，也不输出未经校准的生成模型来源判断。报告侧保持原流程。详见 [v0.8 整改说明](docs/23_v0.8双路径与文体指纹整改说明.md)。
 
