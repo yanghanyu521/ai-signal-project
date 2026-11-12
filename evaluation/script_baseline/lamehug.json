@@ -1,0 +1,161 @@
+{
+  "baseline_version": "1.0",
+  "family": "LAMEHUG",
+  "language": "python",
+  "samples": [
+    {
+      "sha256": "384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715",
+      "size_bytes": 19827,
+      "analysis_scope": "script_with_ai_calls",
+      "obfuscation": "none",
+      "ai_calling": true,
+      "llm_assisted_dev": false,
+      "toolchain": [
+        {
+          "sdk": "requests",
+          "service": "HuggingFace Router (hyperbolic provider)",
+          "endpoint": "https://router.huggingface.co/hyperbolic/v1/chat/completions",
+          "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "model_vendor": "Qwen (Alibaba)",
+          "auth": "Bearer hf_* token rotation, ~280 hardcoded HuggingFace tokens",
+          "parameters": {"temperature": 0.1, "top_p": 0.1},
+          "evidence": {"lines": "12-295 (tokens), 351-361 (query_text), 373/383 (model)"}
+        },
+        {
+          "sdk": "requests",
+          "service": "HuggingFace Router (nebius provider)",
+          "endpoint": "https://router.huggingface.co/nebius/v1/images/generations",
+          "model": "black-forest-labs/flux-dev",
+          "model_vendor": "Black Forest Labs",
+          "parameters": {"response_format": "b64_json"},
+          "evidence": {"lines": "417, 452-456"}
+        }
+      ],
+      "prompts": [
+        {
+          "id": "p1_recon",
+          "role": "Windows systems administrator",
+          "category": "program_prompt",
+          "purpose": "generate Windows one-line commands: create C:\\Programdata\\info, gather computer/hardware/process/service/network/AD info into info.txt",
+          "text": "Make a list of commands to create folder C:\\Programdata\\info and to gather computer information, hardware information, process and services information, networks information, AD domain information, to execute in one line and add each result to text file c:\\Programdata\\info\\info.txt. Return only commands, without markdown",
+          "encoding": "plaintext",
+          "evidence": {"lines": "366-370"}
+        },
+        {
+          "id": "p2_collect_docs",
+          "role": "Windows systems administrator",
+          "category": "program_prompt",
+          "purpose": "generate one-line command to recursively copy office/pdf/txt documents from Documents/Downloads/Desktop to C:\\Programdata\\info",
+          "text": "Make a list of commands to copy recursively different office and pdf/txt documents in user Documents,Downloads and Desktop folders to a folder c:\\Programdata\\info\\ to execute in one line. Return only command, without markdown.",
+          "encoding": "plaintext",
+          "evidence": {"lines": "376-380"}
+        },
+        {
+          "id": "p3_image_example",
+          "role": null,
+          "category": "image_generation_prompt",
+          "purpose": "default image-generation prompt shown to user and used as cmd",
+          "text": "Curvy naked woman sitting, long beautiful legs, front view, full body view, visible face, visible tits",
+          "encoding": "plaintext",
+          "evidence": {"lines": "425, 440"}
+        },
+        {
+          "id": "p4_negative_prompt",
+          "role": null,
+          "category": "image_generation_negative_prompt",
+          "text": "missing fingers, deformed fingers, mutated hands, deformed nipples, bad body,extra limbs, extra digit, bad hands, bad fingers, extra fingers,bad proportions, more than 2 nipples",
+          "encoding": "plaintext",
+          "evidence": {"lines": "444, 448"}
+        }
+      ],
+      "behavior_summary": "Fake AI image generator lure. Background thread asks Qwen for recon/collection one-liners and executes them via subprocess(shell=True); documents staged to C:\\Programdata\\info and exfiltrated over SFTP (paramiko). Decoy image generation via flux-dev.",
+      "network_indicators": ["144.126.202.227:22 (SFTP, upstage/upstage)", "webhook.site/b3e30c61-c8a3-4a8f-9489-5b862585a9a7 (run ping)"],
+      "extraction_expectations": {
+        "must_find": ["Qwen/Qwen2.5-Coder-32B-Instruct", "black-forest-labs/flux-dev", "router.huggingface.co endpoints", "hf_ token list", "2 recon/collection prompts", "LLM output executed via subprocess"],
+        "must_not_claim": ["OpenAI/GPT usage", "that hf_ tokens are OpenAI keys"]
+      },
+      "notes": "Reference variant for the LAMEHUG cluster. 5f6bfdd430a2 differs only in SFTP IP."
+    },
+    {
+      "sha256": "5f6bfdd430a23afdc518857dfff25a29d85ead441dfa0ee363f4e73f240c89f4",
+      "size_bytes": 19827,
+      "analysis_scope": "script_with_ai_calls",
+      "obfuscation": "none",
+      "ai_calling": true,
+      "llm_assisted_dev": false,
+      "same_as": "384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715",
+      "differences_from_reference": ["ssh_send address = 192.168.010.217 instead of 144.126.202.227 (line 298)"],
+      "network_indicators": ["192.168.010.217:22 (SFTP)", "webhook.site/b3e30c61-c8a3-4a8f-9489-5b862585a9a7"],
+      "extraction_expectations": {"must_find": ["identical toolchain and prompts to reference", "different exfil IP"]}
+    },
+    {
+      "sha256": "a67465075c91bb15b81e1f898f2b773196d3711d8e1fb321a9d6647958be436b",
+      "size_bytes": 19654,
+      "analysis_scope": "script_with_ai_calls",
+      "obfuscation": "none",
+      "ai_calling": true,
+      "llm_assisted_dev": false,
+      "same_as": "384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715",
+      "differences_from_reference": ["adds time.sleep(20)", "webhook.site ping removed"],
+      "network_indicators": ["144.126.202.227:22 (SFTP)"],
+      "extraction_expectations": {"must_find": ["identical toolchain and prompts to reference", "no webhook.site indicator"]}
+    },
+    {
+      "sha256": "ae6ed1721d37477494f3f755c124d53a7dd3e24e98c20f3a1372f45cc8130989",
+      "size_bytes": 377817,
+      "analysis_scope": "script_with_ai_calls",
+      "obfuscation": "base64_fields (prompts and embedded xlsx decoy), 361403-char single line",
+      "ai_calling": true,
+      "llm_assisted_dev": false,
+      "toolchain": [
+        {
+          "sdk": "requests",
+          "service": "HuggingFace Router (hyperbolic provider)",
+          "endpoint": "https://router.huggingface.co/hyperbolic/v1/chat/completions",
+          "model": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "parameters": {"temperature": 0.1, "top_p": 0.1},
+          "evidence": {"lines": "325-335, 349, 367"}
+        }
+      ],
+      "prompts": [
+        {
+          "id": "p1_recon_b64",
+          "role": "user",
+          "category": "program_prompt",
+          "encoding": "base64 (variable prompt_b64_p1, decoded text includes surrounding quotes)",
+          "decoded_text": "Make a list of commands to create folder C:\\Programdata\\info and to gather computer information, hardware information, process and services information, networks information, AD domain information, to execute in one line and add each result to text file c:\\Programdata\\info\\info.txt. Return only commands, without markdown",
+          "evidence": {"lines": "340, 346"}
+        },
+        {
+          "id": "p2_collect_docs_b64",
+          "role": "user",
+          "category": "program_prompt",
+          "encoding": "base64 (variable prompt_b64_p2)",
+          "decoded_text": "Make a list of commands to copy recursively different office and pdf/txt documents in user Documents,Downloads and Desktop folders to a folder c:\\Programdata\\info\\ to execute in one line. Return only command, without markdown.",
+          "evidence": {"lines": "341, 364"}
+        }
+      ],
+      "behavior_summary": "Drops base64-embedded xlsx decoy as C:\\programdata\\Додаток.pdf and opens it hidden; Qwen-generated recon/collection commands executed; info.txt exfiltrated via HTTP POST upload.",
+      "network_indicators": ["https://stayathomeclasses.com/slpw/up.php (file upload)", "send() HTTP exfil function"],
+      "extraction_expectations": {
+        "must_find": ["Qwen model + HF router endpoint", "base64.b64decode(prompt_b64_p1/p2) pattern", "decoded prompt content equal to reference prompts", "no image-generation code in this variant"],
+        "must_not_claim": ["role 'Windows systems administrator' (this variant uses role 'user')"]
+      },
+      "notes": "This is the variant whose prompts are base64-encoded (the table note about b64 prompts belongs here; cf4d430d0760 prompts are plaintext)."
+    },
+    {
+      "sha256": "cf4d430d0760d59e2fa925792f9e2b62d335eaf4d664d02bff16dd1b522a462a",
+      "size_bytes": 19473,
+      "analysis_scope": "script_with_ai_calls",
+      "obfuscation": "none (control-flow/exception-structure edits vs reference)",
+      "ai_calling": true,
+      "llm_assisted_dev": false,
+      "same_as": "384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715",
+      "differences_from_reference": ["ssh_send restructured without try/finally", "token_error/query_text control flow changed", "query_image early return added"],
+      "extraction_expectations": {
+        "must_find": ["same Qwen + flux-dev toolchain", "same 2 recon/collection prompts in PLAINTEXT (lines 364, 374)", "webhook.site ping present"],
+        "must_not_claim": ["prompts are base64-encoded in this file"]
+      }
+    }
+  ]
+}
