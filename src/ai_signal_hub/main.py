@@ -18,6 +18,7 @@ from .database import Database
 from .legacy import LegacyAdapters, LegacyUnavailable
 from .repository import Repository
 from .report_llm import ReportModelConfigurationError, ReportModelError
+from .security_events import SecurityEventLibrary
 from .services import HubService
 from .storage import UploadTooLarge
 
@@ -35,6 +36,7 @@ database = Database(settings.database_path)
 repository = Repository(database)
 legacy = LegacyAdapters(settings)
 service = HubService(settings, repository, legacy)
+security_events = SecurityEventLibrary(database)
 
 
 @asynccontextmanager
@@ -50,6 +52,88 @@ app = FastAPI(
     description="恶意样本纯静态 AI 信号、报告事件证据、交叉验证、知识库、统计与报告生成。",
     lifespan=lifespan,
 )
+
+
+class SecurityEventPayload(BaseModel):
+    event_id: str | None = None
+    event_date: str | None = None
+    name: str
+    event_types: list[str] = []
+    summary: str | None = None
+    source: str | None = None
+    sample_text: str | None = None
+    status: str | None = None
+    first_seen_at: str | None = None
+
+
+@app.get("/api/v1/security-events", tags=["security-events"])
+def list_security_events(
+    report_date_from: str | None = None,
+    report_date_to: str | None = None,
+    event_type: str | None = None,
+    has_samples: bool | None = None,
+    first_seen_from: str | None = None,
+    first_seen_to: str | None = None,
+    q: str | None = None,
+    limit: int = Query(default=100, le=500),
+    offset: int = 0,
+):
+    return security_events.list(
+        report_date_from=report_date_from, report_date_to=report_date_to,
+        event_type=event_type, has_samples=has_samples,
+        first_seen_from=first_seen_from, first_seen_to=first_seen_to,
+        q=q, limit=limit, offset=offset,
+    )
+
+
+@app.get("/api/v1/security-events/{event_id}", tags=["security-events"])
+def get_security_event(event_id: str):
+    item = security_events.get(event_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="事件不存在")
+    return item
+
+
+@app.post("/api/v1/security-events", tags=["security-events"], status_code=201)
+def create_security_event(payload: SecurityEventPayload):
+    try:
+        return security_events.create(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise _internal_error("事件创建失败", exc) from exc
+
+
+@app.put("/api/v1/security-events/{event_id}", tags=["security-events"])
+def update_security_event(event_id: str, payload: SecurityEventPayload):
+    try:
+        return security_events.update(event_id, payload.model_dump())
+    except KeyError:
+        raise HTTPException(status_code=404, detail="事件不存在") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise _internal_error("事件更新失败", exc) from exc
+
+
+@app.delete("/api/v1/security-events/{event_id}", tags=["security-events"])
+def delete_security_event(event_id: str):
+    try:
+        security_events.delete(event_id)
+        return {"deleted": True, "event_id": event_id}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="事件不存在") from None
+
+
+@app.post("/api/v1/security-events/import-xlsx", tags=["security-events"])
+def import_security_events():
+    path = settings.security_event_xlsx
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"未找到事件库文件：{path.name}（可用 AI_SECURITY_EVENT_XLSX 指定路径）")
+    try:
+        return security_events.import_xlsx(path)
+    except Exception as exc:
+        raise _internal_error("事件库导入失败", exc) from exc
 
 
 class CrossValidationRequest(BaseModel):

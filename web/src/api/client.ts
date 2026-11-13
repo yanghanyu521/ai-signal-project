@@ -58,3 +58,15 @@ export function postFiles<T>(path: string, files: Record<string, File>, data: Re
   });
   return request<T>(path, { method: 'POST', body: form });
 }
+
+export function putJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteJson<T>(path: string): Promise<T> {
+  return request<T>(path, { method: 'DELETE' });
+}

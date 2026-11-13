@@ -40,6 +40,9 @@ class Settings:
     seed_data_dir: Path = _path_env(
         "AI_SIGNAL_HUB_SEED_DATA_DIR", PROJECT_ROOT / "components" / "seed_data"
     )
+    security_event_xlsx: Path = _path_env(
+        "AI_SECURITY_EVENT_XLSX", PROJECT_ROOT / "AI安全事件库.xlsx"
+    )
     max_upload_bytes: int = int(os.getenv("AI_SIGNAL_HUB_MAX_UPLOAD_BYTES", "104857600"))
     host: str = os.getenv("AI_SIGNAL_HUB_HOST", "127.0.0.1")
     port: int = int(os.getenv("AI_SIGNAL_HUB_PORT", "8000"))

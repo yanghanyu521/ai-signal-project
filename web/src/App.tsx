@@ -1,10 +1,11 @@
 import { Layout, Menu, Tag, Typography } from 'antd';
 import {
   MonitorOutlined, ApiOutlined, NodeIndexOutlined, SwapOutlined, DatabaseOutlined,
-  FileTextOutlined, CheckCircleOutlined,
+  FileTextOutlined, CheckCircleOutlined, GlobalOutlined,
 } from '@ant-design/icons';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import DashboardPage from './pages/DashboardPage';
+import SecurityEventsPage from './pages/SecurityEventsPage';
 import IntakePage from './pages/IntakePage';
 import AssociationsPage from './pages/AssociationsPage';
 import CrossValidationPage from './pages/CrossValidationPage';
@@ -17,6 +18,7 @@ const { Sider, Content } = Layout;
 const menuItems = [
   { key: 'group-overview', type: 'group' as const, label: '总览', children: [
     { key: '/', icon: <MonitorOutlined />, label: <Link to="/">全局看板</Link> },
+    { key: '/events', icon: <GlobalOutlined />, label: <Link to="/events">AI 安全事件</Link> },
   ] },
   { key: 'group-analysis', type: 'group' as const, label: '分析工作台', children: [
     { key: '/intake', icon: <ApiOutlined />, label: <Link to="/intake">联合分析</Link> },
@@ -57,6 +59,7 @@ export default function App() {
         <Content style={{ padding: '28px 32px', maxWidth: 1600, width: '100%', margin: '0 auto' }}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/events" element={<SecurityEventsPage />} />
             <Route path="/intake" element={<IntakePage />} />
             <Route path="/associations" element={<AssociationsPage />} />
             <Route path="/cross-validation" element={<CrossValidationPage />} />

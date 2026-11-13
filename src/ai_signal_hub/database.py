@@ -225,6 +225,24 @@ class Database:
         );
         CREATE INDEX IF NOT EXISTS idx_sample_rel_source ON sample_relations(source_sample_id, overall_similarity DESC);
         CREATE INDEX IF NOT EXISTS idx_sample_rel_target ON sample_relations(target_sample_id, overall_similarity DESC);
+
+        CREATE TABLE IF NOT EXISTS security_event_library (
+            event_id TEXT PRIMARY KEY,
+            event_date TEXT,
+            name TEXT NOT NULL,
+            event_types TEXT NOT NULL,
+            summary TEXT,
+            source TEXT,
+            sample_raw TEXT,
+            sample_detail TEXT NOT NULL,
+            has_samples INTEGER NOT NULL,
+            sample_count INTEGER NOT NULL,
+            first_seen_at TEXT,
+            updated_at TEXT,
+            status TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_security_events_date ON security_event_library(event_date);
+        CREATE INDEX IF NOT EXISTS idx_security_events_seen ON security_event_library(first_seen_at);
         """
         with self.connect() as connection:
             connection.executescript(schema)
