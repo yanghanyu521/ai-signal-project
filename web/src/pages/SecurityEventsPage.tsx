@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert, App as AntApp, Button, Card, Col, DatePicker, Descriptions, Drawer,
-  Form, Input, Modal, Popconfirm, Row, Select, Space, Table, Tag, Typography,
+  Form, Input, Modal, Popconfirm, Row, Select, Space, Table, Tag, Typography, Upload,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { deleteJson, getJson, postJson, putJson } from '../api/client';
+import { deleteJson, getJson, postFiles, postJson, putJson } from '../api/client';
 import { PageHeader } from '../components/common';
 
 const EVENT_TYPES = ['AI辅助恶意样本开发', '恶意行为调用AI', 'Agent编排攻击行动'];
@@ -15,13 +15,20 @@ const TYPE_COLORS: Record<string, string> = {
   Agent编排攻击行动: 'geekblue',
 };
 
+function noteOf(entry: any): string {
+  if (entry?.note) return entry.note;
+  let text = String(entry?.text || '');
+  (entry?.hashes || []).forEach((hash: string) => { text = text.split(hash).join(''); });
+  return text.replace(/SHA256:/i, '').replace(/^[（(]\s*/, '').replace(/\s*[）)]$/, '').trim();
+}
+
 type EventFormValues = {
   event_id?: string;
   name: string;
   event_date?: any;
   event_types: string[];
   summary?: string;
-  sample_text?: string;
+  samples?: { hash?: string; note?: string }[];
   source?: string;
   status?: string;
 };
@@ -44,7 +51,9 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       event_date: initial?.event_date ? dayjs(initial.event_date) : null,
       event_types: initial?.event_types || [],
       summary: initial?.summary || '',
-      sample_text: initial?.samples?.raw || '',
+      samples: (initial?.samples?.entries || [])
+        .map((entry: any) => ({ hash: entry.hashes?.[0] || '', note: noteOf(entry) }))
+        .filter((row: any) => row.hash || (row.note && row.note !== '无')),
       source: initial?.source || '',
       status: initial?.status || '新增',
     });
@@ -57,7 +66,9 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       event_date: values.event_date ? values.event_date.format('YYYY-MM-DD') : null,
       event_types: values.event_types || [],
       summary: values.summary,
-      sample_text: values.sample_text,
+      sample_entries: (values.samples || [])
+        .map((row) => ({ hash: (row?.hash || '').trim(), note: (row?.note || '').trim() }))
+        .filter((row) => row.hash || row.note),
       source: values.source,
       status: values.status,
     };
@@ -136,6 +147,7 @@ function EventDetailDrawer({ eventId, onClose, onEdit }: {
 }) {
   const [detail, setDetail] = useState<any>(null);
   const [error, setError] = useState('');
+  const { message } = AntApp.useApp();
 
   useEffect(() => {
     if (!eventId) { setDetail(null); return; }
@@ -164,14 +176,23 @@ function EventDetailDrawer({ eventId, onClose, onEdit }: {
           <Typography.Paragraph style={{ lineHeight: 1.9 }}>{detail.summary || '—'}</Typography.Paragraph>
           <Typography.Title level={5}>可分析样本哈希（{detail.samples?.sample_count || 0}）</Typography.Title>
           {(detail.samples?.entries || []).length === 0 && <Typography.Text type="secondary">无</Typography.Text>}
-          {(detail.samples?.entries || []).map((entry: any, index: number) => (
-            <div key={index} style={{ marginBottom: 12 }}>
-              {(entry.hashes || []).map((hash: string) => (
-                <pre key={hash} style={{ background: '#F6F8FB', padding: '8px 12px', borderRadius: 8, fontSize: 12, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{hash}</pre>
-              ))}
-              <Typography.Text type="secondary" style={{ fontSize: 13 }}>{entry.text}</Typography.Text>
-            </div>
-          ))}
+          {(detail.samples?.entries || []).map((entry: any, index: number) => {
+            if (!(entry.hashes || []).length) {
+              return <div key={index}><Typography.Text type="secondary">{entry.text}</Typography.Text></div>;
+            }
+            return (entry.hashes || []).map((hash: string) => (
+              <div key={hash} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <code style={{ background: '#F6F8FB', padding: '6px 10px', borderRadius: 6, fontSize: 12, flex: 1, wordBreak: 'break-all' }}>{hash}</code>
+                  <Button size="small" icon={<CopyOutlined />} onClick={async () => {
+                    await navigator.clipboard.writeText(hash);
+                    message.success('哈希已复制');
+                  }}>复制</Button>
+                </div>
+                {noteOf(entry) && <Typography.Text type="secondary" style={{ fontSize: 13 }}>{noteOf(entry)}</Typography.Text>}
+              </div>
+            ));
+          })}
           <Typography.Title level={5}>来源</Typography.Title>
           {(detail.sources || []).length === 0 && <Typography.Text type="secondary">—</Typography.Text>}
           <ul style={{ paddingLeft: 18, lineHeight: 2 }}>
@@ -203,7 +224,7 @@ export default function SecurityEventsPage() {
   const [pageSize, setPageSize] = useState(15);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editor, setEditor] = useState<{ open: boolean; initial: any | null }>({ open: false, initial: null });
-  const { message, modal } = AntApp.useApp();
+  const { message } = AntApp.useApp();
 
   const load = useCallback(async (pageNo = page, size = pageSize) => {
     setLoading(true);
@@ -249,18 +270,24 @@ export default function SecurityEventsPage() {
     }
   };
 
-  const importXlsx = () => {
-    modal.confirm({
-      title: '从 AI安全事件库.xlsx 重新导入',
-      content: '按事件 ID 幂等更新，不会删除手工新增的事件。',
-      okText: '开始导入',
-      cancelText: '取消',
-      onOk: async () => {
-        const result = await postJson<any>('/api/v1/security-events/import-xlsx', {});
-        message.success(`已导入/更新 ${result.imported} 条事件`);
-        load();
-      },
-    });
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const importUpload = async () => {
+    if (!importFile) { message.warning('请先选择要导入的表格文件'); return; }
+    setImporting(true);
+    try {
+      const result = await postFiles<any>('/api/v1/security-events/import', { file: importFile }, {});
+      message.success(`已导入/更新 ${result.imported} 条事件`);
+      setImportOpen(false);
+      setImportFile(null);
+      load();
+    } catch (exc: any) {
+      message.error(exc.message);
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -268,7 +295,7 @@ export default function SecurityEventsPage() {
       <PageHeader title="AI 安全事件库"
         description="目前搜集到的全球 AI 安全事件。支持按报告时间、事件类型、样本可用性与入库时间筛选；点击事件名称查看完整详情。"
         extra={<>
-          <Button icon={<UploadOutlined />} onClick={importXlsx}>从 xlsx 更新</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setImportOpen(true)}>导入事件</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditor({ open: true, initial: null })}>新增事件</Button>
         </>} />
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
@@ -364,6 +391,16 @@ export default function SecurityEventsPage() {
         onEdit={(detail) => { setDetailId(null); setEditor({ open: true, initial: detail }); }} />
       <EventFormModal open={editor.open} initial={editor.initial}
         onClose={() => setEditor({ open: false, initial: null })} onSaved={() => load()} />
+      <Modal title="导入事件" open={importOpen} onCancel={() => setImportOpen(false)}
+        onOk={importUpload} confirmLoading={importing} okText="开始导入" cancelText="取消">
+        <p style={{ color: '#6B7280', fontSize: 13 }}>上传与 AI安全事件库.xlsx 同格式的表格（需含“事件库”工作表）。按事件 ID 幂等导入/更新，不会删除手工新增的事件。</p>
+        <Upload.Dragger accept=".xlsx,.xls" maxCount={1}
+          beforeUpload={(file) => { setImportFile(file); return false; }}
+          onRemove={() => setImportFile(null)}>
+          <p className="ant-upload-text">点击或拖拽表格文件到此</p>
+          <p className="ant-upload-hint">支持 .xlsx / .xls</p>
+        </Upload.Dragger>
+      </Modal>
     </>
   );
 }

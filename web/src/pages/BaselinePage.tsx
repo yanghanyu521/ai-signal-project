@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Card, Col, Row, Segmented, Select, Tabs, Tag } from 'antd';
+import { Alert, Card, Col, Drawer, Row, Segmented, Select, Table, Tabs, Tag } from 'antd';
 import { CheckCircleFilled, StopOutlined } from '@ant-design/icons';
 import { DataTable, PageHeader, StatCards } from '../components/common';
 import fruitshell from '../../../evaluation/script_baseline/fruitshell.json';
@@ -38,12 +38,15 @@ function CallingTag({ value }: { value: unknown }) {
   return <Tag color="orange">静态不可确认</Tag>;
 }
 
-function SampleCard({ sample }: { sample: any }) {
+function SampleDetail({ sample }: { sample: any }) {
   const expectations = sample.extraction_expectations || {};
   return (
-    <Card size="small" style={{ marginBottom: 16 }}
-      title={<span style={{ fontWeight: 600 }}>{sample.family} <span style={{ color: '#94A3B8', fontWeight: 400, fontSize: 12 }}>{sample.sha256.slice(0, 24)}…</span></span>}
-      extra={<><CallingTag value={sample.ai_calling} /><Tag>{sample.language}</Tag>{sample.obfuscation && <Tag color="orange">混淆</Tag>}</>}>
+    <>
+      <div style={{ marginBottom: 16 }}>
+        <CallingTag value={sample.ai_calling} /><Tag>{sample.language}</Tag>
+        {sample.obfuscation && <Tag color="orange">混淆</Tag>}
+      </div>
+      <pre style={{ background: '#F6F8FB', padding: '8px 12px', borderRadius: 8, fontSize: 12, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>{sample.sha256}</pre>
       {sample.same_as && <Alert type="info" showIcon style={{ marginBottom: 12 }}
         message={`近重复变体，基准继承自 ${sample.same_as.slice(0, 16)}…；差异：${sample.differences_from_reference}`} />}
       {sample.behavior_summary && <p>{sample.behavior_summary}</p>}
@@ -91,11 +94,12 @@ function SampleCard({ sample }: { sample: any }) {
           </Col>
         </Row>
       )}
-    </Card>
+    </>
   );
 }
 
 function SamplesTab() {
+  const [selected, setSelected] = useState<any>(null);
   const [family, setFamily] = useState('全部');
   const [scope, setScope] = useState('全部');
   const visible = useMemo(() => samples.filter((sample) =>
@@ -116,17 +120,26 @@ function SamplesTab() {
         { label: '可确认 AI 调用', value: samples.filter((sample) => sample.ai_calling === true).length },
         { label: '当前筛选', value: visible.length },
       ]} />
-      <DataTable rows={visible.map((sample) => ({
-        家族: sample.family,
-        'SHA-256 前12位': sample.sha256.slice(0, 12),
-        语言: sample.language,
-        范围: SCOPE_LABELS[sample.analysis_scope] || sample.analysis_scope,
-        混淆: sample.obfuscation || '无',
-        提示词数: (sample.prompts || []).length,
-      }))} />
-      <div style={{ marginTop: 20 }}>
-        {visible.map((sample) => <SampleCard key={sample.sha256} sample={sample} />)}
-      </div>
+      <Table
+        size="middle"
+        rowKey="sha256"
+        dataSource={visible}
+        onRow={(record) => ({ onClick: () => setSelected(record), style: { cursor: 'pointer' } })}
+        pagination={{ pageSize: 12, hideOnSinglePage: true }}
+        columns={[
+          { title: '家族', dataIndex: 'family', width: 150 },
+          { title: 'SHA-256 前12位', dataIndex: 'sha256', width: 160, render: (value: string) => <code>{value.slice(0, 12)}</code> },
+          { title: '语言', dataIndex: 'language', width: 110 },
+          { title: '范围', dataIndex: 'analysis_scope', width: 230, render: (value: string) => SCOPE_LABELS[value] || value },
+          { title: '混淆', dataIndex: 'obfuscation', ellipsis: true, render: (value: string) => value || '无' },
+          { title: '提示词数', width: 90, render: (_: unknown, record: any) => (record.prompts || []).length },
+        ]}
+      />
+      <p style={{ color: '#6B7280', fontSize: 13 }}>点击表格中的样本行，查看该样本的工具链、提示词与提取期望详情。</p>
+      <Drawer title={selected ? `${selected.family} · 样本基准详情` : ''} width={680}
+        open={!!selected} onClose={() => setSelected(null)}>
+        {selected && <SampleDetail sample={selected} />}
+      </Drawer>
     </>
   );
 }

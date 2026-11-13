@@ -1145,6 +1145,16 @@ class Repository:
             business_metrics = {row["metric_key"]: int(row["metric_value"]) for row in metric_rows}
             global_events = business_metrics.get("global_ai_security_events", 46)
             analyzable_events = business_metrics.get("analyzable_events", 11)
+            library_table = connection.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='security_event_library'"
+            ).fetchone()[0]
+            if library_table:
+                # 全球事件总数与样本可用性以 AI 安全事件库实际条目为准；空库回退历史口径。
+                library_total = connection.execute("SELECT COUNT(*) FROM security_event_library").fetchone()[0]
+                if library_total:
+                    global_events = library_total
+                    analyzable_events = connection.execute(
+                        "SELECT COUNT(*) FROM security_event_library WHERE has_samples=1").fetchone()[0]
             if analyzable_events > global_events:
                 raise ValueError("知识范围指标异常：可分析事件数不能超过全球事件总数")
             validation_rows = connection.execute(

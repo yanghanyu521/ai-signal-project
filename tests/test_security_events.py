@@ -93,3 +93,38 @@ def test_api_read_and_not_found():
     listing = client.get("/api/v1/security-events", params={"limit": 5})
     assert listing.status_code == 200
     assert "items" in listing.json() and "total" in listing.json()
+
+
+def test_structured_sample_entries(library):
+    created = library.create({
+        "name": "结构化样本录入", "event_types": ["恶意行为调用AI"],
+        "sample_entries": [
+            {"hash": "e" * 64, "note": "来源 VirusTotal"},
+            {"hash": "f" * 64, "note": ""},
+            {"hash": "", "note": ""},
+        ],
+    })
+    assert created["sample_count"] == 2
+    assert created["samples"]["entries"][0]["note"] == "来源 VirusTotal"
+    assert "SHA256: " + "e" * 64 + "（来源 VirusTotal）" in created["samples"]["raw"]
+    with pytest.raises(ValueError, match="64 位"):
+        library.create({"name": "坏哈希", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash": "abc", "note": ""}]})
+
+
+def test_import_excel_from_bytes(library):
+    import io
+    if not XLSX.is_file():
+        pytest.skip("事件库 xlsx 不在仓库检出中")
+    result = library.import_excel(io.BytesIO(XLSX.read_bytes()))
+    assert result["imported"] == 60
+
+
+def test_statistics_global_events_follow_library(platform):
+    _, repository = platform
+    assert repository.statistics()["totals"]["global_ai_security_events"] == 46  # 空库回退历史口径
+    library = SecurityEventLibrary(repository.db)
+    library.create({"name": "事件一", "event_types": ["恶意行为调用AI"]})
+    library.create({"name": "事件二", "event_types": ["恶意行为调用AI"]})
+    totals = repository.statistics()["totals"]
+    assert totals["global_ai_security_events"] == 2

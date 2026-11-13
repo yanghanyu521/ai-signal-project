@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import io
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -62,6 +63,7 @@ class SecurityEventPayload(BaseModel):
     summary: str | None = None
     source: str | None = None
     sample_text: str | None = None
+    sample_entries: list[dict[str, str]] | None = None
     status: str | None = None
     first_seen_at: str | None = None
 
@@ -123,6 +125,19 @@ def delete_security_event(event_id: str):
         return {"deleted": True, "event_id": event_id}
     except KeyError:
         raise HTTPException(status_code=404, detail="事件不存在") from None
+
+
+@app.post("/api/v1/security-events/import", tags=["security-events"])
+async def import_security_events_upload(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="请上传 .xlsx/.xls 表格文件（需包含“事件库”工作表）")
+    content = await file.read()
+    if len(content) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="表格文件过大")
+    try:
+        return security_events.import_excel(io.BytesIO(content))
+    except Exception as exc:
+        raise _internal_error("事件库导入失败，请确认表格包含“事件库”工作表及规定列", exc) from exc
 
 
 @app.post("/api/v1/security-events/import-xlsx", tags=["security-events"])

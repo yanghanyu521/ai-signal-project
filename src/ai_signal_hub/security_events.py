@@ -65,6 +65,28 @@ def _split_values(value: Any) -> list[str]:
     return [item.strip() for item in re.split(r"[;；\n]+", str(value)) if item.strip()]
 
 
+def samples_from_entries(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Structured per-row input: one hash plus one note per row."""
+    clean = []
+    for entry in entries:
+        hash_ = str(entry.get("hash") or "").strip().lower()
+        note = str(entry.get("note") or "").strip()
+        if hash_ and not SHA256_RE.fullmatch(hash_):
+            raise ValueError(f"哈希必须是 64 位十六进制字符串：{hash_[:32]}…")
+        if not hash_ and not note:
+            continue
+        text = (f"SHA256: {hash_}" if hash_ else "") + (f"（{note}）" if note else "")
+        clean.append({"text": text, "hashes": [hash_] if hash_ else [], "note": note})
+    hashes = list(dict.fromkeys(entry["hashes"][0] for entry in clean if entry["hashes"]))
+    return {
+        "raw": "\n".join(entry["text"] for entry in clean) or "无",
+        "entries": clean,
+        "hashes": hashes,
+        "has_samples": bool(hashes),
+        "sample_count": len(hashes),
+    }
+
+
 class SecurityEventLibrary:
     def __init__(self, database: Database):
         self.database = database
@@ -134,7 +156,10 @@ class SecurityEventLibrary:
         return item
 
     def _upsert(self, connection, event_id: str, payload: dict[str, Any], *, preserve_dates: bool) -> None:
-        samples = parse_sample_text(payload.get("sample_text"))
+        if payload.get("sample_entries") is not None:
+            samples = samples_from_entries(payload["sample_entries"])
+        else:
+            samples = parse_sample_text(payload.get("sample_text"))
         event_types = payload.get("event_types") or []
         if isinstance(event_types, str):
             event_types = _split_values(event_types)
@@ -175,7 +200,7 @@ class SecurityEventLibrary:
         event_id = (payload.get("event_id") or "").strip()
         if not event_id:
             date_part = (_date_text(payload.get("event_date")) or _now()[:10]).replace("-", "")
-            event_id = f"AISEC-{date_part}-CUSTOM-{datetime.now(UTC).strftime('%H%M%S')}"
+            event_id = f"AISEC-{date_part}-CUSTOM-{datetime.now(UTC).strftime('%H%M%S%f')}"
         with self.database.connect() as connection:
             exists = connection.execute(
                 "SELECT 1 FROM security_event_library WHERE event_id = ?", (event_id,)).fetchone()
@@ -200,10 +225,10 @@ class SecurityEventLibrary:
             if cursor.rowcount == 0:
                 raise KeyError(event_id)
 
-    def import_xlsx(self, path: Path) -> dict[str, int]:
+    def import_excel(self, source: Any) -> dict[str, int]:
         import pandas as pd
 
-        frame = pd.read_excel(path, sheet_name="事件库", dtype=str)
+        frame = pd.read_excel(source, sheet_name="事件库", dtype=str)
         imported = 0
         with self.database.connect() as connection:
             for _, row in frame.iterrows():
@@ -223,3 +248,6 @@ class SecurityEventLibrary:
                 }, preserve_dates=True)
                 imported += 1
         return {"imported": imported}
+
+    def import_xlsx(self, path: Path) -> dict[str, int]:
+        return self.import_excel(path)
