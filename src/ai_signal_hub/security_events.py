@@ -65,18 +65,35 @@ def _split_values(value: Any) -> list[str]:
     return [item.strip() for item in re.split(r"[;；\n]+", str(value)) if item.strip()]
 
 
+HASH_TYPES = ("SHA-256", "SHA-1", "MD5", "其他")
+_HASH_LENGTHS = {"SHA-256": 64, "SHA-1": 40, "MD5": 32}
+
+
+def infer_hash_type(hash_: str) -> str:
+    for name, length in _HASH_LENGTHS.items():
+        if len(hash_) == length and re.fullmatch(r"[a-fA-F0-9]+", hash_):
+            return name
+    return "其他"
+
+
 def samples_from_entries(entries: list[dict[str, Any]]) -> dict[str, Any]:
-    """Structured per-row input: one hash plus one note per row."""
+    """Structured per-row input: hash type, hash value and note per row."""
     clean = []
     for entry in entries:
         hash_ = str(entry.get("hash") or "").strip().lower()
         note = str(entry.get("note") or "").strip()
-        if hash_ and not SHA256_RE.fullmatch(hash_):
-            raise ValueError(f"哈希必须是 64 位十六进制字符串：{hash_[:32]}…")
+        hash_type = str(entry.get("hash_type") or "").strip() or infer_hash_type(hash_)
+        if hash_type not in HASH_TYPES:
+            raise ValueError(f"哈希类型仅限 {'、'.join(HASH_TYPES)}")
+        if hash_:
+            expected = _HASH_LENGTHS.get(hash_type)
+            if expected and not re.fullmatch(rf"[a-fA-F0-9]{{{expected}}}", hash_):
+                raise ValueError(f"{hash_type} 哈希必须是 {expected} 位十六进制字符串：{hash_[:32]}")
         if not hash_ and not note:
             continue
-        text = (f"SHA256: {hash_}" if hash_ else "") + (f"（{note}）" if note else "")
-        clean.append({"text": text, "hashes": [hash_] if hash_ else [], "note": note})
+        text = (f"{hash_type}: {hash_}" if hash_ else "") + (f"（{note}）" if note else "")
+        clean.append({"text": text, "hashes": [hash_] if hash_ else [], "note": note,
+                      "hash_type": hash_type})
     hashes = list(dict.fromkeys(entry["hashes"][0] for entry in clean if entry["hashes"]))
     return {
         "raw": "\n".join(entry["text"] for entry in clean) or "无",

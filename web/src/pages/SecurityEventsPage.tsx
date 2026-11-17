@@ -19,7 +19,15 @@ function noteOf(entry: any): string {
   if (entry?.note) return entry.note;
   let text = String(entry?.text || '');
   (entry?.hashes || []).forEach((hash: string) => { text = text.split(hash).join(''); });
-  return text.replace(/SHA256:/i, '').replace(/^[（(]\s*/, '').replace(/\s*[）)]$/, '').trim();
+  return text.replace(/^(SHA-?256|SHA-?1|MD5):/i, '').replace(/^[（(]\s*/, '').replace(/\s*[）)]$/, '').trim();
+}
+
+const HASH_TYPE_OPTIONS = ['SHA-256', 'SHA-1', 'MD5', '其他'];
+function hashTypeOf(hash: string): string {
+  if (/^[a-fA-F0-9]{64}$/.test(hash)) return 'SHA-256';
+  if (/^[a-fA-F0-9]{40}$/.test(hash)) return 'SHA-1';
+  if (/^[a-fA-F0-9]{32}$/.test(hash)) return 'MD5';
+  return '其他';
 }
 
 type EventFormValues = {
@@ -28,7 +36,7 @@ type EventFormValues = {
   event_date?: any;
   event_types: string[];
   summary?: string;
-  samples?: { hash?: string; note?: string }[];
+  samples?: { hash_type?: string; hash?: string; note?: string }[];
   source?: string;
   status?: string;
 };
@@ -52,7 +60,7 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       event_types: initial?.event_types || [],
       summary: initial?.summary || '',
       samples: (initial?.samples?.entries || [])
-        .map((entry: any) => ({ hash: entry.hashes?.[0] || '', note: noteOf(entry) }))
+        .map((entry: any) => ({ hash_type: entry.hash_type || hashTypeOf(entry.hashes?.[0] || ''), hash: entry.hashes?.[0] || '', note: noteOf(entry) }))
         .filter((row: any) => row.hash || (row.note && row.note !== '无')),
       source: initial?.source || '',
       status: initial?.status || '新增',
@@ -67,7 +75,7 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       event_types: values.event_types || [],
       summary: values.summary,
       sample_entries: (values.samples || [])
-        .map((row) => ({ hash: (row?.hash || '').trim(), note: (row?.note || '').trim() }))
+        .map((row) => ({ hash_type: row?.hash_type || 'SHA-256', hash: (row?.hash || '').trim(), note: (row?.note || '').trim() }))
         .filter((row) => row.hash || row.note),
       source: values.source,
       status: values.status,
@@ -99,7 +107,8 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       confirmLoading={saving}
       okText="保存"
       cancelText="取消"
-      width={680}
+      width={720}
+      styles={{ body: { maxHeight: '62vh', overflowY: 'auto' } }}
       destroyOnHidden
     >
       <Form form={form} layout="vertical">
@@ -129,8 +138,38 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
         <Form.Item name="summary" label="事件概要">
           <Input.TextArea rows={4} />
         </Form.Item>
-        <Form.Item name="sample_text" label="可分析样本哈希" extra="每行一条，格式如 SHA256: <64位哈希>（注释）；没有样本填“无”。">
-          <Input.TextArea rows={3} placeholder={'SHA256: 0123abcd…（来源注释）\n无'} />
+        <Form.Item label="可分析样本哈希" extra="一行一个样本：类型、哈希值、注释分别填写；点下方按钮添加更多行。">
+          <Form.List name="samples">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((field) => (
+                  <div key={field.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <Form.Item name={[field.name, 'hash_type']} noStyle initialValue="SHA-256">
+                      <Select style={{ width: 110 }} options={HASH_TYPE_OPTIONS.map((value) => ({ value, label: value }))} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'hash']} noStyle
+                      rules={[{ validator: (_rule, value) => {
+                        if (!value) return Promise.resolve();
+                        const row = form.getFieldValue(['samples', field.name]) || {};
+                        const lengths: Record<string, number> = { 'SHA-256': 64, 'SHA-1': 40, MD5: 32 };
+                        const expected = lengths[row.hash_type];
+                        if (expected && !new RegExp(`^[a-fA-F0-9]{${expected}}$`).test(value)) {
+                          return Promise.reject(new Error(`${row.hash_type} 需 ${expected} 位十六进制`));
+                        }
+                        return Promise.resolve();
+                      } }]}>
+                      <Input placeholder="哈希值" style={{ fontFamily: 'monospace' }} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'note']} noStyle>
+                      <Input placeholder="注释（可选）" style={{ width: 200 }} />
+                    </Form.Item>
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
+                  </div>
+                ))}
+                <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ hash_type: 'SHA-256' })}>添加样本哈希行</Button>
+              </>
+            )}
+          </Form.List>
         </Form.Item>
         <Form.Item name="source" label="来源（多个链接用分号或换行分隔）">
           <Input.TextArea rows={2} />
@@ -183,6 +222,7 @@ function EventDetailDrawer({ eventId, onClose, onEdit }: {
             return (entry.hashes || []).map((hash: string) => (
               <div key={hash} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Tag style={{ margin: 0 }}>{entry.hash_type || hashTypeOf(hash)}</Tag>
                   <code style={{ background: '#F6F8FB', padding: '6px 10px', borderRadius: 6, fontSize: 12, flex: 1, wordBreak: 'break-all' }}>{hash}</code>
                   <Button size="small" icon={<CopyOutlined />} onClick={async () => {
                     await navigator.clipboard.writeText(hash);

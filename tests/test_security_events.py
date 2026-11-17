@@ -109,7 +109,7 @@ def test_structured_sample_entries(library):
     assert "SHA256: " + "e" * 64 + "（来源 VirusTotal）" in created["samples"]["raw"]
     with pytest.raises(ValueError, match="64 位"):
         library.create({"name": "坏哈希", "event_types": ["恶意行为调用AI"],
-                        "sample_entries": [{"hash": "abc", "note": ""}]})
+                        "sample_entries": [{"hash_type": "SHA-256", "hash": "abc", "note": ""}]})
 
 
 def test_import_excel_from_bytes(library):
@@ -128,3 +128,28 @@ def test_statistics_global_events_follow_library(platform):
     library.create({"name": "事件二", "event_types": ["恶意行为调用AI"]})
     totals = repository.statistics()["totals"]
     assert totals["global_ai_security_events"] == 2
+
+
+def test_hash_types_and_validation(library):
+    created = library.create({
+        "name": "多类型哈希", "event_types": ["恶意行为调用AI"],
+        "sample_entries": [
+            {"hash_type": "MD5", "hash": "d41d8cd98f00b204e9800998ecf8427e", "note": "空文件"},
+            {"hash_type": "SHA-1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709", "note": ""},
+            {"hash_type": "SHA-256", "hash": "e" * 64, "note": ""},
+            {"hash_type": "其他", "hash": "custom-identifier", "note": "非标准标识"},
+        ],
+    })
+    assert created["sample_count"] == 4
+    types = [entry["hash_type"] for entry in created["samples"]["entries"]]
+    assert types == ["MD5", "SHA-1", "SHA-256", "其他"]
+    with pytest.raises(ValueError, match="MD5"):
+        library.create({"name": "x", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash_type": "MD5", "hash": "e" * 64}]})
+    with pytest.raises(ValueError, match="哈希类型"):
+        library.create({"name": "x", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash_type": "SHA-512", "hash": "e" * 64}]})
+    # 编辑回填：hash_type 必须保留在条目里
+    detail = library.get(created["event_id"])
+    assert detail["samples"]["entries"][0]["note"] == "空文件"
+    library.delete(created["event_id"])

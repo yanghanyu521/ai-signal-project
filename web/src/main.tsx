@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import App from './App';
 import './app.css';
@@ -36,7 +36,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       }}
     >
       <HashRouter>
-        <App />
+        <AntApp>
+          <App />
+        </AntApp>
       </HashRouter>
     </ConfigProvider>
   </React.StrictMode>,
