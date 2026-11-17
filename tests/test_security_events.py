@@ -106,7 +106,7 @@ def test_structured_sample_entries(library):
     })
     assert created["sample_count"] == 2
     assert created["samples"]["entries"][0]["note"] == "来源 VirusTotal"
-    assert "SHA256: " + "e" * 64 + "（来源 VirusTotal）" in created["samples"]["raw"]
+    assert "SHA-256: " + "e" * 64 + "（来源 VirusTotal）" in created["samples"]["raw"]
     with pytest.raises(ValueError, match="64 位"):
         library.create({"name": "坏哈希", "event_types": ["恶意行为调用AI"],
                         "sample_entries": [{"hash_type": "SHA-256", "hash": "abc", "note": ""}]})
