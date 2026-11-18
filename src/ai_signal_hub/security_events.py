@@ -66,6 +66,7 @@ def _split_values(value: Any) -> list[str]:
 
 
 HASH_TYPES = ("SHA-256", "SHA-1", "MD5", "其他")
+SAMPLE_TYPES = ("脚本文件", "可执行文件", "其他")
 _HASH_LENGTHS = {"SHA-256": 64, "SHA-1": 40, "MD5": 32}
 
 
@@ -85,6 +86,9 @@ def samples_from_entries(entries: list[dict[str, Any]]) -> dict[str, Any]:
         hash_type = str(entry.get("hash_type") or "").strip() or infer_hash_type(hash_)
         if hash_type not in HASH_TYPES:
             raise ValueError(f"哈希类型仅限 {'、'.join(HASH_TYPES)}")
+        sample_type = str(entry.get("sample_type") or "").strip() or "脚本文件"
+        if sample_type not in SAMPLE_TYPES:
+            raise ValueError(f"样本类型仅限 {'、'.join(SAMPLE_TYPES)}")
         if hash_:
             expected = _HASH_LENGTHS.get(hash_type)
             if expected and not re.fullmatch(rf"[a-fA-F0-9]{{{expected}}}", hash_):
@@ -93,7 +97,7 @@ def samples_from_entries(entries: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         text = (f"{hash_type}: {hash_}" if hash_ else "") + (f"（{note}）" if note else "")
         clean.append({"text": text, "hashes": [hash_] if hash_ else [], "note": note,
-                      "hash_type": hash_type})
+                      "hash_type": hash_type, "sample_type": sample_type})
     hashes = list(dict.fromkeys(entry["hashes"][0] for entry in clean if entry["hashes"]))
     return {
         "raw": "\n".join(entry["text"] for entry in clean) or "无",

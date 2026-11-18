@@ -153,3 +153,28 @@ def test_hash_types_and_validation(library):
     detail = library.get(created["event_id"])
     assert detail["samples"]["entries"][0]["note"] == "空文件"
     library.delete(created["event_id"])
+
+
+def test_sample_type_and_status_driven_statistics(platform):
+    _, repository = platform
+    library = SecurityEventLibrary(repository.db)
+    event = library.create({
+        "name": "联动统计事件", "event_types": ["恶意行为调用AI"], "status": "已分析入库",
+        "sample_entries": [
+            {"hash_type": "SHA-256", "hash": "a" * 64, "sample_type": "脚本文件", "note": ""},
+            {"hash_type": "SHA-256", "hash": "b" * 64, "sample_type": "可执行文件", "note": ""},
+            {"hash_type": "MD5", "hash": "d41d8cd98f00b204e9800998ecf8427e", "sample_type": "脚本文件", "note": ""},
+        ],
+    })
+    assert event["sample_count"] == 3
+    assert event["samples"]["entries"][1]["sample_type"] == "可执行文件"
+    library.create({"name": "未分析事件", "event_types": ["恶意行为调用AI"], "status": "新增"})
+    totals = repository.statistics()["totals"]
+    assert totals["analyzable_events"] == 1  # 只有“已分析入库”计入
+    assert totals["samples"] == 2  # 该事件下 sample_type=脚本文件 的两行
+    library.update(event["event_id"], {"name": "联动统计事件", "event_types": ["恶意行为调用AI"],
+                                       "status": "已复核", "sample_entries": []})
+    assert repository.statistics()["totals"]["analyzable_events"] == 0
+    with pytest.raises(ValueError, match="样本类型"):
+        library.create({"name": "x", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash": "a" * 64, "sample_type": "文档"}]})

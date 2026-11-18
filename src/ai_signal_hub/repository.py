@@ -1148,13 +1148,21 @@ class Repository:
             library_table = connection.execute(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='security_event_library'"
             ).fetchone()[0]
+            library_script_samples = None
             if library_table:
                 # 全球事件总数与样本可用性以 AI 安全事件库实际条目为准；空库回退历史口径。
                 library_total = connection.execute("SELECT COUNT(*) FROM security_event_library").fetchone()[0]
                 if library_total:
                     global_events = library_total
                     analyzable_events = connection.execute(
-                        "SELECT COUNT(*) FROM security_event_library WHERE has_samples=1").fetchone()[0]
+                        "SELECT COUNT(*) FROM security_event_library WHERE status='已分析入库'").fetchone()[0]
+                    analyzed_rows = connection.execute(
+                        "SELECT sample_detail FROM security_event_library WHERE status='已分析入库'").fetchall()
+                    library_script_samples = 0
+                    for analyzed in analyzed_rows:
+                        for entry in json.loads(analyzed["sample_detail"]).get("entries", []):
+                            if entry.get("sample_type") == "脚本文件" and entry.get("hashes"):
+                                library_script_samples += 1
             if analyzable_events > global_events:
                 raise ValueError("知识范围指标异常：可分析事件数不能超过全球事件总数")
             validation_rows = connection.execute(
@@ -1187,7 +1195,8 @@ class Repository:
                 "report_event_records": connection.execute(
                     f"SELECT COUNT(*) FROM events{report_event_where}", report_event_params
                 ).fetchone()[0],
-                "samples": connection.execute(f"SELECT COUNT(*) FROM samples{sample_where}", sample_params).fetchone()[0],
+                "samples": (library_script_samples if library_script_samples is not None
+                            else connection.execute(f"SELECT COUNT(*) FROM samples{sample_where}", sample_params).fetchone()[0]),
                 "reports": logical_report_count,
                 "logical_reports": logical_report_count,
                 "report_records": len(report_rows),

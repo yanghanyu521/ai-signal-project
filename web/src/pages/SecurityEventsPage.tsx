@@ -9,6 +9,10 @@ import { deleteJson, getJson, postFiles, postJson, putJson } from '../api/client
 import { PageHeader } from '../components/common';
 
 const EVENT_TYPES = ['AI辅助恶意样本开发', '恶意行为调用AI', 'Agent编排攻击行动'];
+const STATUS_COLORS: Record<string, string> = { 新增: 'blue', 已复核: 'gold', 已分析入库: 'green' };
+const STATUS_OPTIONS = ['新增', '已复核', '已分析入库'];
+const SAMPLE_TYPE_OPTIONS = ['脚本文件', '可执行文件', '其他'];
+
 const TYPE_COLORS: Record<string, string> = {
   AI辅助恶意样本开发: 'purple',
   恶意行为调用AI: 'blue',
@@ -36,7 +40,7 @@ type EventFormValues = {
   event_date?: any;
   event_types: string[];
   summary?: string;
-  samples?: { hash_type?: string; hash?: string; note?: string }[];
+  samples?: { hash_type?: string; sample_type?: string; hash?: string; note?: string }[];
   source?: string;
   status?: string;
 };
@@ -60,7 +64,7 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       event_types: initial?.event_types || [],
       summary: initial?.summary || '',
       samples: (initial?.samples?.entries || [])
-        .map((entry: any) => ({ hash_type: entry.hash_type || hashTypeOf(entry.hashes?.[0] || ''), hash: entry.hashes?.[0] || '', note: noteOf(entry) }))
+        .map((entry: any) => ({ hash_type: entry.hash_type || hashTypeOf(entry.hashes?.[0] || ''), hash: entry.hashes?.[0] || '', sample_type: entry.sample_type || '其他', note: noteOf(entry) }))
         .filter((row: any) => row.hash || (row.note && row.note !== '无')),
       source: initial?.source || '',
       status: initial?.status || '新增',
@@ -75,7 +79,7 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       event_types: values.event_types || [],
       summary: values.summary,
       sample_entries: (values.samples || [])
-        .map((row) => ({ hash_type: row?.hash_type || 'SHA-256', hash: (row?.hash || '').trim(), note: (row?.note || '').trim() }))
+        .map((row) => ({ hash_type: row?.hash_type || 'SHA-256', sample_type: row?.sample_type || '脚本文件', hash: (row?.hash || '').trim(), note: (row?.note || '').trim() }))
         .filter((row) => row.hash || row.note),
       source: values.source,
       status: values.status,
@@ -108,7 +112,7 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
       okText="保存"
       cancelText="取消"
       width={720}
-      styles={{ body: { maxHeight: '62vh', overflowY: 'auto' } }}
+      styles={{ body: { maxHeight: '62vh', overflowY: 'auto', overflowX: 'hidden' } }}
       destroyOnHidden
     >
       <Form form={form} layout="vertical">
@@ -128,7 +132,7 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
           </Col>
           <Col span={12}>
             <Form.Item name="status" label="状态">
-              <Select options={['新增', '更新', '已复核', '排除'].map((value) => ({ value, label: value }))} />
+              <Select options={STATUS_OPTIONS.map((value) => ({ value, label: value }))} />
             </Form.Item>
           </Col>
         </Row>
@@ -138,14 +142,17 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
         <Form.Item name="summary" label="事件概要">
           <Input.TextArea rows={4} />
         </Form.Item>
-        <Form.Item label="可分析样本哈希" extra="一行一个样本：类型、哈希值、注释分别填写；点下方按钮添加更多行。">
+        <Form.Item label="可分析样本哈希" extra="一行一个样本：哈希类型、样本类型、哈希值、注释分别填写；点下方按钮添加更多行。">
           <Form.List name="samples">
             {(fields, { add, remove }) => (
               <>
                 {fields.map((field) => (
                   <div key={field.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                     <Form.Item name={[field.name, 'hash_type']} noStyle initialValue="SHA-256">
-                      <Select style={{ width: 110 }} options={HASH_TYPE_OPTIONS.map((value) => ({ value, label: value }))} />
+                      <Select style={{ width: 104 }} options={HASH_TYPE_OPTIONS.map((value) => ({ value, label: value }))} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'sample_type']} noStyle initialValue="脚本文件">
+                      <Select style={{ width: 112 }} options={SAMPLE_TYPE_OPTIONS.map((value) => ({ value, label: value }))} placeholder="样本类型" />
                     </Form.Item>
                     <Form.Item name={[field.name, 'hash']} noStyle
                       rules={[{ validator: (_rule, value) => {
@@ -158,15 +165,15 @@ function EventFormModal({ open, initial, onClose, onSaved }: {
                         }
                         return Promise.resolve();
                       } }]}>
-                      <Input placeholder="哈希值" style={{ fontFamily: 'monospace' }} />
+                      <Input placeholder="哈希值" style={{ fontFamily: 'monospace', flex: 1, minWidth: 0 }} />
                     </Form.Item>
                     <Form.Item name={[field.name, 'note']} noStyle>
-                      <Input placeholder="注释（可选）" style={{ width: 200 }} />
+                      <Input placeholder="注释（可选）" style={{ width: 170 }} />
                     </Form.Item>
                     <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
                   </div>
                 ))}
-                <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ hash_type: 'SHA-256' })}>添加样本哈希行</Button>
+                <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ hash_type: 'SHA-256', sample_type: '脚本文件' })}>添加样本哈希行</Button>
               </>
             )}
           </Form.List>
@@ -202,7 +209,7 @@ function EventDetailDrawer({ eventId, onClose, onEdit }: {
           <Typography.Title level={5} style={{ marginTop: 0 }}>{detail.name}</Typography.Title>
           <div style={{ marginBottom: 16 }}>
             {(detail.event_types || []).map((type: string) => <Tag key={type} color={TYPE_COLORS[type]}>{type}</Tag>)}
-            <Tag>{detail.status || '—'}</Tag>
+            <Tag color={STATUS_COLORS[detail.status] || 'default'}>{detail.status || '—'}</Tag>
             {detail.has_samples ? <Tag color="green">有可分析样本</Tag> : <Tag>无可分析样本</Tag>}
           </div>
           <Descriptions column={1} size="small" bordered items={[
@@ -407,7 +414,8 @@ export default function SecurityEventsPage() {
                 : <Tag>无</Tag>,
             },
             { title: '入库时间', dataIndex: 'first_seen_at', width: 120, render: (value: string) => (value || '').slice(0, 10) || '—' },
-            { title: '状态', dataIndex: 'status', width: 80 },
+            { title: '状态', dataIndex: 'status', width: 100,
+              render: (value: string) => <Tag color={STATUS_COLORS[value] || 'default'}>{value || '—'}</Tag> },
             {
               title: '操作', key: 'actions', width: 190,
               render: (_: unknown, record: any) => (
