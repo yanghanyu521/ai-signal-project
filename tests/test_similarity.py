@@ -346,3 +346,18 @@ def test_old_running_api_cannot_rebuild_through_new_ui(monkeypatch):
     assert not app.exception
     assert app.button[0].disabled
     assert any("重启" in item.value for item in app.warning)
+
+
+def test_compare_profiles_tolerates_legacy_component_without_status(monkeypatch):
+    from ai_signal_hub import similarity
+    monkeypatch.setattr(similarity, 'compare_toolchain', lambda left, right: {'score': None, 'matched_facts': []})
+    monkeypatch.setattr(similarity, 'compare_prompts', lambda left, right: {'score': None, 'matched_structure': [], 'matched_prompts': []})
+    monkeypatch.setattr(similarity, 'compare_code_style', lambda left, right: {
+        'score': 1.0, 'components': [
+            {'metric': 'loc', 'left': 1, 'right': 1, 'score': 1.0},
+            {'metric': 'comment_ratio', 'left': 0.1, 'right': 0.1, 'score': 1.0, 'status': 'comparable'},
+        ]})
+    result = similarity.compare_profiles(
+        {'toolchain': {}, 'prompt': {}, 'code_style': {}},
+        {'toolchain': {}, 'prompt': {}, 'code_style': {}})
+    assert result['common_features'] == ['code_style:equal:comment_ratio']

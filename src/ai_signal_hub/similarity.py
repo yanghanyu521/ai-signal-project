@@ -330,7 +330,7 @@ def compare_profiles(left: dict, right: dict, weights: dict | None = None) -> di
     common += ["prompt:" + match["method"] for match in groups["prompt"].get("matched_prompts", [])]
     # Do not call the mere existence of a metric a shared feature.
     common += ["code_style:equal:" + part["metric"] for part in groups["code_style"].get("components", [])
-               if part["status"] == "comparable" and part["score"] == 1.0]
+               if part.get("status") == "comparable" and part.get("score") == 1.0]
     return {"overall_similarity": total if coverage else None,
             **{group + "_similarity": detail["score"] for group, detail in groups.items()},
             "common_features": list(dict.fromkeys(common)),
