@@ -6,7 +6,7 @@ from ui_utils.api import ApiError, api_base_url, get_json, post_json
 from ui_utils.presenters import render_event_context_editor, render_joint_summary
 
 
-st.title("按分析案例执行交叉验证")
+st.title(":material/compare_arrows: 按分析案例执行交叉验证")
 st.caption("先选择联合分析案例，系统只允许比较该案例中已经对应的样本和报告，避免任意对象误配。")
 
 try:

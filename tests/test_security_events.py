@@ -1,0 +1,180 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from ai_signal_hub.database import Database
+from ai_signal_hub.security_events import SecurityEventLibrary, parse_sample_text
+
+XLSX = Path(__file__).resolve().parents[1] / "AI安全事件库.xlsx"
+
+
+@pytest.fixture
+def library(tmp_path):
+    database = Database(tmp_path / "test.db")
+    database.initialize()
+    return SecurityEventLibrary(database)
+
+
+def test_parse_sample_text():
+    assert parse_sample_text("无")["has_samples"] is False
+    assert parse_sample_text(None)["has_samples"] is False
+    one = parse_sample_text("SHA256: " + "a" * 64 + "（原表注释）")
+    assert one["has_samples"] and one["sample_count"] == 1
+    assert one["hashes"] == ["a" * 64]
+    two = parse_sample_text("SHA256: " + "a" * 64 + "\nSHA256: " + "b" * 64)
+    assert two["sample_count"] == 2 and len(two["entries"]) == 2
+
+
+@pytest.mark.skipif(not XLSX.is_file(), reason="事件库 xlsx 不在仓库检出中")
+def test_import_xlsx_idempotent_and_filters(library):
+    result = library.import_xlsx(XLSX)
+    assert result["imported"] == 60
+    assert library.import_xlsx(XLSX)["imported"] == 60
+    listing = library.list(limit=500)
+    assert listing["total"] == 60
+    assert all(item["sample_count"] >= 0 for item in listing["items"])
+    typed = library.list(event_type="恶意行为调用AI", limit=500)
+    assert 0 < typed["total"] < 60
+    assert all("恶意行为调用AI" in item["event_types"] for item in typed["items"])
+    with_samples = library.list(has_samples=True, limit=500)
+    assert with_samples["total"] > 0
+    assert all(item["has_samples"] for item in with_samples["items"])
+    none = library.list(has_samples=False, limit=500)
+    assert with_samples["total"] + none["total"] == 60
+    ranged = library.list(report_date_from="2025-07-01", report_date_to="2025-07-31", limit=500)
+    assert ranged["total"] > 0
+    assert all(item["event_date"].startswith("2025-07") for item in ranged["items"])
+    seen = library.list(first_seen_from="2026-10-12", first_seen_to="2026-10-12", limit=500)
+    assert seen["total"] > 0
+    found = library.list(q="LAMEHUG", limit=500)
+    assert found["total"] >= 1
+    detail = library.get("AISEC-20250717-APT28-LAMEHUG")
+    assert detail["summary"] and detail["sources"]
+    assert detail["samples"]["has_samples"] is True
+    assert detail["samples"]["sample_count"] == 1
+
+
+def test_crud_cycle_and_validation(library):
+    created = library.create({
+        "name": "测试事件", "event_date": "2026-01-02",
+        "event_types": ["AI辅助恶意样本开发"], "summary": "概要",
+        "sample_text": "SHA256: " + "c" * 64, "source": "https://example.com/a ; https://example.com/b",
+    })
+    event_id = created["event_id"]
+    assert event_id.startswith("AISEC-20260102-CUSTOM-")
+    assert created["has_samples"] and created["sample_count"] == 1
+    with pytest.raises(ValueError, match="已存在"):
+        library.create({"event_id": event_id, "name": "重复"})
+    with pytest.raises(ValueError, match="事件类型"):
+        library.create({"name": "非法类型", "event_types": ["其他"]})
+    with pytest.raises(ValueError, match="名称"):
+        library.create({"name": " "})
+    updated = library.update(event_id, {"name": "测试事件v2", "event_types": ["Agent编排攻击行动"],
+                                        "sample_text": "无", "summary": "更新概要"})
+    assert updated["name"] == "测试事件v2" and updated["has_samples"] is False
+    assert updated["first_seen_at"] == created["first_seen_at"]
+    library.delete(event_id)
+    assert library.get(event_id) is None
+    with pytest.raises(KeyError):
+        library.delete(event_id)
+    with pytest.raises(KeyError):
+        library.update(event_id, {"name": "不存在"})
+
+
+def test_api_read_and_not_found():
+    from ai_signal_hub import main
+    main.database.initialize()  # idempotent schema migration, no data writes
+    client = TestClient(main.app)
+    response = client.get("/api/v1/security-events/nonexistent-event")
+    assert response.status_code == 404
+    listing = client.get("/api/v1/security-events", params={"limit": 5})
+    assert listing.status_code == 200
+    assert "items" in listing.json() and "total" in listing.json()
+
+
+def test_structured_sample_entries(library):
+    created = library.create({
+        "name": "结构化样本录入", "event_types": ["恶意行为调用AI"],
+        "sample_entries": [
+            {"hash": "e" * 64, "note": "来源 VirusTotal"},
+            {"hash": "f" * 64, "note": ""},
+            {"hash": "", "note": ""},
+        ],
+    })
+    assert created["sample_count"] == 2
+    assert created["samples"]["entries"][0]["note"] == "来源 VirusTotal"
+    assert "SHA-256: " + "e" * 64 + "（来源 VirusTotal）" in created["samples"]["raw"]
+    with pytest.raises(ValueError, match="64 位"):
+        library.create({"name": "坏哈希", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash_type": "SHA-256", "hash": "abc", "note": ""}]})
+
+
+def test_import_excel_from_bytes(library):
+    import io
+    if not XLSX.is_file():
+        pytest.skip("事件库 xlsx 不在仓库检出中")
+    result = library.import_excel(io.BytesIO(XLSX.read_bytes()))
+    assert result["imported"] == 60
+
+
+def test_statistics_global_events_follow_library(platform):
+    _, repository = platform
+    assert repository.statistics()["totals"]["global_ai_security_events"] == 46  # 空库回退历史口径
+    library = SecurityEventLibrary(repository.db)
+    library.create({"name": "事件一", "event_types": ["恶意行为调用AI"]})
+    library.create({"name": "事件二", "event_types": ["恶意行为调用AI"]})
+    totals = repository.statistics()["totals"]
+    assert totals["global_ai_security_events"] == 2
+
+
+def test_hash_types_and_validation(library):
+    created = library.create({
+        "name": "多类型哈希", "event_types": ["恶意行为调用AI"],
+        "sample_entries": [
+            {"hash_type": "MD5", "hash": "d41d8cd98f00b204e9800998ecf8427e", "note": "空文件"},
+            {"hash_type": "SHA-1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709", "note": ""},
+            {"hash_type": "SHA-256", "hash": "e" * 64, "note": ""},
+            {"hash_type": "其他", "hash": "custom-identifier", "note": "非标准标识"},
+        ],
+    })
+    assert created["sample_count"] == 4
+    types = [entry["hash_type"] for entry in created["samples"]["entries"]]
+    assert types == ["MD5", "SHA-1", "SHA-256", "其他"]
+    with pytest.raises(ValueError, match="MD5"):
+        library.create({"name": "x", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash_type": "MD5", "hash": "e" * 64}]})
+    with pytest.raises(ValueError, match="哈希类型"):
+        library.create({"name": "x", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash_type": "SHA-512", "hash": "e" * 64}]})
+    # 编辑回填：hash_type 必须保留在条目里
+    detail = library.get(created["event_id"])
+    assert detail["samples"]["entries"][0]["note"] == "空文件"
+    library.delete(created["event_id"])
+
+
+def test_sample_type_and_status_driven_statistics(platform):
+    _, repository = platform
+    library = SecurityEventLibrary(repository.db)
+    event = library.create({
+        "name": "联动统计事件", "event_types": ["恶意行为调用AI"], "status": "已分析入库",
+        "sample_entries": [
+            {"hash_type": "SHA-256", "hash": "a" * 64, "sample_type": "脚本文件", "note": ""},
+            {"hash_type": "SHA-256", "hash": "b" * 64, "sample_type": "可执行文件", "note": ""},
+            {"hash_type": "MD5", "hash": "d41d8cd98f00b204e9800998ecf8427e", "sample_type": "脚本文件", "note": ""},
+        ],
+    })
+    assert event["sample_count"] == 3
+    assert event["samples"]["entries"][1]["sample_type"] == "可执行文件"
+    library.create({"name": "未分析事件", "event_types": ["恶意行为调用AI"], "status": "新增"})
+    totals = repository.statistics()["totals"]
+    assert totals["analyzable_events"] == 1  # 只有“已分析入库”计入
+    assert totals["samples"] == 2  # 该事件下 sample_type=脚本文件 的两行
+    library.update(event["event_id"], {"name": "联动统计事件", "event_types": ["恶意行为调用AI"],
+                                       "status": "已复核", "sample_entries": []})
+    assert repository.statistics()["totals"]["analyzable_events"] == 0
+    with pytest.raises(ValueError, match="样本类型"):
+        library.create({"name": "x", "event_types": ["恶意行为调用AI"],
+                        "sample_entries": [{"hash": "a" * 64, "sample_type": "文档"}]})

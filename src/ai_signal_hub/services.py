@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+import shutil
 import uuid
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -13,6 +14,7 @@ from .config import Settings
 from .database import utc_now
 from .legacy import LegacyAdapters
 from .repository import Repository
+from .script_scope import detect_script
 from .similarity import SampleSimilarityService
 from .storage import (
     UploadTooLarge,
@@ -36,18 +38,25 @@ class HubService:
             source, self.settings.quarantine_dir / ".incoming", self.settings.max_upload_bytes
         )
         stored_path = move_without_overwrite(temp_path, self.settings.quarantine_dir / f"{sha256}.sample")
+        is_script, _, rejection = detect_script(stored_path)
+        if not is_script:
+            stored_path.unlink(missing_ok=True)
+            raise ValueError(f"仅分析脚本文件：{rejection}。样本未入库（{display_name}）")
         artifact_dir = self.settings.sample_artifact_dir / sha256
         result = self.legacy.analyze_sample(stored_path, artifact_dir)
         actual_sha = str(result.get("sample", {}).get("sha256") or "").lower()
         if actual_sha != sha256:
             raise RuntimeError("上传阶段与分析阶段计算的 SHA-256 不一致，结果未入库")
-        saved = self.repository.upsert_sample(
-            result,
-            original_name=display_name,
-            source_case=source_case,
-            artifact_path=str(artifact_dir.resolve()),
-        )
-        self.similarity.rebuild()
+        # Serialize upsert+rebuild: a concurrent upload must not rebuild
+        # clusters from a half-updated sample set.
+        with self.similarity.lock:
+            saved = self.repository.upsert_sample(
+                result,
+                original_name=display_name,
+                source_case=source_case,
+                artifact_path=str(artifact_dir.resolve()),
+            )
+            self.similarity.rebuild()
         saved["sample_associations"] = self.similarity.associations(sha256)
         return saved
 
@@ -58,13 +67,17 @@ class HubService:
         stored_path = self.settings.quarantine_dir / f"{sha256.lower()}.sample"
         if not stored_path.is_file():
             raise FileNotFoundError("知识库只有历史结果，没有可重新分析的原始样本")
+        is_script, _, rejection = detect_script(stored_path)
+        if not is_script:
+            raise ValueError(f"仅分析脚本文件：{rejection}。历史二进制样本保留旧结果，不再重新分析")
         artifact_dir = self.settings.sample_artifact_dir / sha256.lower()
         result = self.legacy.analyze_sample(stored_path, artifact_dir)
-        saved = self.repository.upsert_sample(
-            result, original_name=existing.get("original_name"),
-            source_case=existing.get("source_case"), artifact_path=str(artifact_dir.resolve()),
-        )
-        self.similarity.rebuild()
+        with self.similarity.lock:
+            saved = self.repository.upsert_sample(
+                result, original_name=existing.get("original_name"),
+                source_case=existing.get("source_case"), artifact_path=str(artifact_dir.resolve()),
+            )
+            self.similarity.rebuild()
         saved["analysis_runs"] = self.repository.sample_analysis_runs(sha256, 5)
         return saved
 
@@ -86,9 +99,19 @@ class HubService:
         display_name = sanitize_display_name(filename, f"report{suffix}")
         run_id = uuid.uuid4().hex
         run_dir = self.settings.report_dir / run_id
-        temp_path, _, _ = stream_to_temporary(
+        temp_path, content_sha256, _ = stream_to_temporary(
             source, run_dir / ".incoming", self.settings.max_upload_bytes
         )
+        # Same bytes extracted for the same target: reuse the stored result
+        # instead of paying for another non-deterministic LLM run. A different
+        # target still triggers a fresh extraction.
+        existing = self.repository.find_report_by_content_hash(content_sha256)
+        if existing and self._same_extraction_target(existing, target_name, target_aliases):
+            temp_path.unlink(missing_ok=True)
+            shutil.rmtree(run_dir, ignore_errors=True)
+            existing["deduplicated"] = True
+            existing["deduplication_basis"] = "content_sha256+target_event"
+            return existing
         source_path = move_without_overwrite(temp_path, run_dir / f"source{suffix}")
         artifact_dir = run_dir / "artifacts"
         result = self.legacy.analyze_report(
@@ -120,6 +143,26 @@ class HubService:
     @staticmethod
     def _canonical_name(value: Any) -> str:
         return "".join(character.lower() for character in str(value or "") if character.isalnum())
+
+    @classmethod
+    def _same_extraction_target(
+        cls,
+        report: dict[str, Any],
+        target_name: str | None,
+        target_aliases: list[str] | None,
+    ) -> bool:
+        extraction = (report.get("result_json") or {}).get("extraction") or {}
+        target = extraction.get("target_event") or {}
+        stored_name = cls._canonical_name(target.get("name"))
+        if not stored_name or stored_name != cls._canonical_name(target_name):
+            return False
+        stored_aliases = {
+            cls._canonical_name(alias) for alias in target.get("aliases") or [] if cls._canonical_name(alias)
+        }
+        requested_aliases = {
+            cls._canonical_name(alias) for alias in target_aliases or [] if cls._canonical_name(alias)
+        }
+        return stored_aliases == requested_aliases
 
     @classmethod
     def _event_for_sample(

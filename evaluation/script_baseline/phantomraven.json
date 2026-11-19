@@ -1,0 +1,40 @@
+{
+  "baseline_version": "1.0",
+  "family": "PhantomRaven",
+  "language": "javascript (Node.js)",
+  "samples": [
+    {
+      "sha256": "95a7dcc6de46826b22c43bee7fc550f3b5e2e6cbc5f33b0c241faf523641cf63",
+      "size_bytes": 8320,
+      "analysis_scope": "script_llm_assisted_no_ai_calls",
+      "obfuscation": "none",
+      "ai_calling": false,
+      "llm_assisted_dev": true,
+      "toolchain": [],
+      "prompts": [],
+      "llm_dev_style_signals": [
+        "placeholder WebSocket fallback 'wss://yourserver.com/socket' (typical LLM leftover placeholder)",
+        "over-complete enumerated comments ('// 1. Check environment variables', '// New function to ...')",
+        "broad generic CI/CD variable sweep across GitHub Actions/GitLab/Jenkins/CircleCI"
+      ],
+      "behavior_summary": "npm preinstall stealer: collects env vars, git/npm/package author emails, CI/CD metadata, host info, public IP via api64.ipify.org, exfiltrates by GET query string and POST JSON to http://npm.jpartifacts.com/jpd.php, with email lookup endpoint and WebSocket fallback.",
+      "network_indicators": ["http://npm.jpartifacts.com/jpd.php", "https://api64.ipify.org?format=json"],
+      "extraction_expectations": {
+        "must_find": ["no AI toolchain calls", "no prompts", "exfil endpoints"],
+        "must_not_claim": ["any AI vendor/model/prompt"]
+      }
+    },
+    {
+      "sha256": "db3fe46df0a65fe9f8c99d2e11126a032a72e9814e354ce017448ce088a01e02",
+      "size_bytes": 8334,
+      "analysis_scope": "script_llm_assisted_no_ai_calls",
+      "obfuscation": "none",
+      "ai_calling": false,
+      "llm_assisted_dev": true,
+      "same_as": "95a7dcc6de46826b22c43bee7fc550f3b5e2e6cbc5f33b0c241faf523641cf63",
+      "differences_from_reference": ["C2 domain only: http://packages.storeartifact.com/jpd.php replaces http://npm.jpartifacts.com/jpd.php (lines 162-163)"],
+      "network_indicators": ["http://packages.storeartifact.com/jpd.php", "https://api64.ipify.org?format=json"],
+      "extraction_expectations": {"must_find": ["identical to reference except C2 domain"]}
+    }
+  ]
+}

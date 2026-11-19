@@ -116,6 +116,12 @@ def _sample_key_features(result: dict[str, Any]) -> dict[str, Any]:
             "recoverability": (features.get("code_style") or {}).get("recoverability"),
             "metrics": (features.get("code_style") or {}).get("metrics") or {},
         },
+        "code_generation_signals": {
+            "analysis_status": (features.get("code_generation_signals") or {}).get("analysis_status") or {},
+            "fingerprint": (features.get("code_generation_signals") or {}).get("fingerprint"),
+            "local_profile_count": len((features.get("code_generation_signals") or {}).get("local_profiles") or []),
+            "generation_artifacts": (features.get("code_generation_signals") or {}).get("generation_artifacts") or [],
+        },
     }
 
 
@@ -192,7 +198,7 @@ class Repository:
                 VALUES(?,?,?,?,?,?,?,?)
                 """,
                 ("run:" + uuid.uuid4().hex, sha256, result.get("schema_version"),
-                 "ai-signal-hub/0.6.0", "analysis_or_import", artifact_path,
+                 "ai-signal-hub/0.8.0", "analysis_or_import", artifact_path,
                  json_text(result), now),
             )
         return self.get_sample(sha256)
@@ -428,6 +434,14 @@ class Repository:
             ).fetchall()
             report["events"] = self.db.rows(events)
             return report
+
+    def find_report_by_content_hash(self, content_sha256: str) -> dict[str, Any] | None:
+        with self.db.connect() as connection:
+            row = connection.execute(
+                "SELECT report_id FROM reports WHERE content_sha256=? ORDER BY created_at LIMIT 1",
+                (content_sha256.lower(),),
+            ).fetchone()
+        return self.get_report(row["report_id"]) if row else None
 
     def list_reports(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         with self.db.connect() as connection:
@@ -704,6 +718,11 @@ class Repository:
             ).fetchall()
         return self.db.rows(rows, ("result_json",))
 
+    def sample_family_map(self) -> dict[str, str | None]:
+        with self.db.connect() as connection:
+            rows = connection.execute("SELECT sha256, source_case FROM samples").fetchall()
+        return {row["sha256"]: row["source_case"] for row in rows}
+
     def replace_sample_similarity(
         self,
         *,
@@ -801,8 +820,14 @@ class Repository:
                 if comparison["status"] == "not_comparable":
                     item["overall_similarity"] = None
                 item["comparable_weight"] = comparison["comparable_weight"]
+                item["conditional_similarity"] = comparison.get("conditional_similarity")
+                item["cluster_distance"] = comparison.get("cluster_distance")
+                item["cluster_distance_basis"] = comparison.get("cluster_distance_basis")
             else:
                 item["comparable_weight"] = None
+                item["conditional_similarity"] = None
+                item["cluster_distance"] = None
+                item["cluster_distance_basis"] = None
         cluster_result = self.db.row(cluster, ("details_json",))
         diagnostic = cluster_result.pop("details_json") if cluster_result else {}
         run_result = self.db.row(run, ("details_json",))
@@ -835,7 +860,7 @@ class Repository:
             "association_summary": {"evaluated_pairs": len(relations), "comparable_pairs": comparable_count,
                                     "positive_pairs": len(positives), "include_unmatched": include_unmatched},
             "related_samples": (relations if include_unmatched else positives)[:limit],
-            "interpretation": "总分按固定权重合成，缺失组不重分配权重；null表示不可比较，0表示可比但无匹配；非同源、同模型或AI生成概率。",
+            "interpretation": "总分按固定权重合成，缺失组计零不重分配；聚类距离改用覆盖率归一化分数，可比权重不足的样本对不参与聚类；null表示不可比较，0表示可比但无匹配；非同源、同模型或AI生成概率。",
         }
 
     def search(self, query: str, limit: int = 50) -> dict[str, Any]:
@@ -1118,8 +1143,26 @@ class Repository:
                 "SELECT metric_key,metric_value FROM knowledge_metrics"
             ).fetchall()
             business_metrics = {row["metric_key"]: int(row["metric_value"]) for row in metric_rows}
-            global_events = business_metrics.get("global_ai_security_events", 25)
-            analyzable_events = business_metrics.get("analyzable_events", 9)
+            global_events = business_metrics.get("global_ai_security_events", 46)
+            analyzable_events = business_metrics.get("analyzable_events", 11)
+            library_table = connection.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='security_event_library'"
+            ).fetchone()[0]
+            library_script_samples = None
+            if library_table:
+                # 全球事件总数与样本可用性以 AI 安全事件库实际条目为准；空库回退历史口径。
+                library_total = connection.execute("SELECT COUNT(*) FROM security_event_library").fetchone()[0]
+                if library_total:
+                    global_events = library_total
+                    analyzable_events = connection.execute(
+                        "SELECT COUNT(*) FROM security_event_library WHERE status='已分析入库'").fetchone()[0]
+                    analyzed_rows = connection.execute(
+                        "SELECT sample_detail FROM security_event_library WHERE status='已分析入库'").fetchall()
+                    library_script_samples = 0
+                    for analyzed in analyzed_rows:
+                        for entry in json.loads(analyzed["sample_detail"]).get("entries", []):
+                            if entry.get("sample_type") == "脚本文件" and entry.get("hashes"):
+                                library_script_samples += 1
             if analyzable_events > global_events:
                 raise ValueError("知识范围指标异常：可分析事件数不能超过全球事件总数")
             validation_rows = connection.execute(
@@ -1144,12 +1187,16 @@ class Repository:
                 "global_ai_security_events": global_events,
                 "analyzable_events": analyzable_events,
                 "events_without_samples": global_events - analyzable_events,
+                "catalog_sample_families": business_metrics.get("catalog_sample_families", 11),
+                "catalog_logical_reports": business_metrics.get("catalog_logical_reports", 9),
+                "catalog_family_report_mappings": business_metrics.get("catalog_family_report_mappings", 11),
                 "curated_research_events": curated_events,
                 "event_records": event_records,
                 "report_event_records": connection.execute(
                     f"SELECT COUNT(*) FROM events{report_event_where}", report_event_params
                 ).fetchone()[0],
-                "samples": connection.execute(f"SELECT COUNT(*) FROM samples{sample_where}", sample_params).fetchone()[0],
+                "samples": (library_script_samples if library_script_samples is not None
+                            else connection.execute(f"SELECT COUNT(*) FROM samples{sample_where}", sample_params).fetchone()[0]),
                 "reports": logical_report_count,
                 "logical_reports": logical_report_count,
                 "report_records": len(report_rows),
@@ -1200,7 +1247,7 @@ class Repository:
         previous_count = monthly.get(previous_month, 0)
         growth_rate = None if previous_count == 0 else (current_count - previous_count) / previous_count * 100
         return {
-            "scope": "全球事件与可分析事件采用知识范围业务口径且为全量值；样本家族按样本来源标注统计；报告按规范化标题逻辑去重；数据库事件物理记录分来源审计；日期筛选只作用于知识库记录型指标",
+            "scope": "事件库总量、可分析事件及 catalog_* 采用全量业务口径；samples、sample_families、logical_reports、family_report_mappings 为实际入库记录；历史研究事件单独审计；日期筛选只作用于知识库记录型指标",
             "as_of": now.isoformat(),
             "range": {"date_from": date_from, "date_to": date_to},
             "totals": totals,

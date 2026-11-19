@@ -8,6 +8,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = PROJECT_ROOT.parent
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_ROOT / ".env")
+except ImportError:
+    pass
+
 
 def _path_env(name: str, default: Path) -> Path:
     value = os.getenv(name)
@@ -32,6 +39,9 @@ class Settings:
     )
     seed_data_dir: Path = _path_env(
         "AI_SIGNAL_HUB_SEED_DATA_DIR", PROJECT_ROOT / "components" / "seed_data"
+    )
+    security_event_xlsx: Path = _path_env(
+        "AI_SECURITY_EVENT_XLSX", PROJECT_ROOT / "AI安全事件库.xlsx"
     )
     max_upload_bytes: int = int(os.getenv("AI_SIGNAL_HUB_MAX_UPLOAD_BYTES", "104857600"))
     host: str = os.getenv("AI_SIGNAL_HUB_HOST", "127.0.0.1")
@@ -58,7 +68,7 @@ class Settings:
     sample_llm_timeout_seconds: float = field(default_factory=lambda: float(os.getenv("SAMPLE_LLM_TIMEOUT_SECONDS", "240")))
     sample_llm_max_input_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_INPUT_TOKENS", "64000")))
     sample_llm_max_output_tokens: int = field(default_factory=lambda: int(os.getenv("SAMPLE_LLM_MAX_OUTPUT_TOKENS", "16384")))
-    static_tools_docker_enabled: bool = field(default_factory=lambda: _bool_env("STATIC_TOOLS_DOCKER_ENABLED", True))
+    static_tools_docker_enabled: bool = field(default_factory=lambda: _bool_env("STATIC_TOOLS_DOCKER_ENABLED", False))
     jadx_docker_image: str = field(default_factory=lambda: os.getenv("JADX_DOCKER_IMAGE", "ai-signal/jadx:1.5.6"))
     ghidra_docker_image: str = field(default_factory=lambda: os.getenv("GHIDRA_DOCKER_IMAGE", "ai-signal/ghidra:12.1.3"))
     static_tool_timeout_seconds: int = field(default_factory=lambda: int(os.getenv("STATIC_TOOL_TIMEOUT_SECONDS", "600")))

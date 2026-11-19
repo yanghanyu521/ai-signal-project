@@ -1,0 +1,28 @@
+{
+  "baseline_version": "1.0",
+  "family": "SLOPOLY",
+  "language": "powershell",
+  "samples": [
+    {
+      "sha256": "0884e5590bdf3763f8529453fbd24ee46a3a460bba4c2da5b0141f5ec6a35675",
+      "size_bytes": 6176,
+      "analysis_scope": "script_llm_assisted_no_ai_calls",
+      "obfuscation": "polymorphic randomized identifiers (two-word function names), not encryption",
+      "ai_calling": false,
+      "llm_assisted_dev": true,
+      "toolchain": [],
+      "prompts": [],
+      "llm_dev_style_signals": [
+        "systematic two-word random function names: MoveLast, ShortWeak, RejectLow, SmoothMove, StartFetch, PoorStrong, EmptyYoung, StayWide, BigNarrow, DumbFetch",
+        "'Polymorphic C2 Persistence Client' header with redacted timestamp/session placeholders",
+        "uniform verbose inline comments and structured heartbeat/poll/result protocol"
+      ],
+      "behavior_summary": "C2 persistence client: mutex guard, 30s heartbeat and 50s command polling to https://plurfestivalgalaxy.com:443/api/commands with JSON actions heartbeat/wait_command/result, cmd /c execution, 1MB log rotation, random 1-5s jitter.",
+      "network_indicators": ["https://plurfestivalgalaxy.com:443/api/commands"],
+      "extraction_expectations": {
+        "must_find": ["no AI toolchain calls", "no prompts", "C2 protocol and endpoint"],
+        "must_not_claim": ["any AI vendor/model/prompt (AI involvement is LLM-assisted development only, code style is a hint not proof)"]
+      }
+    }
+  ]
+}

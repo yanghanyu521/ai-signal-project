@@ -62,7 +62,9 @@ def test_dashboard_uses_business_event_scope(monkeypatch):
 
     stats = {
         "totals": {
-            "global_ai_security_events": 25, "analyzable_events": 9, "events_without_samples": 16,
+            "global_ai_security_events": 46, "analyzable_events": 11, "events_without_samples": 35,
+            "catalog_sample_families": 11, "catalog_logical_reports": 9,
+            "catalog_family_report_mappings": 11,
             "sample_families": 9, "samples": 45, "logical_reports": 7,
             "family_report_mappings": 9, "cross_validation_records": 22,
             "curated_research_events": 11, "report_event_records": 18, "report_records": 9,
@@ -77,9 +79,47 @@ def test_dashboard_uses_business_event_scope(monkeypatch):
     app.run()
     assert not app.exception
     labels = {item.label: item.value for item in app.metric}
-    assert labels["全球 AI 安全事件"] == "25"
-    assert labels["有样本、可分析事件"] == "9"
-    assert labels["暂无样本事件"] == "16"
+    assert labels["全球 AI 安全事件"] == "46"
+    assert labels["有样本、可分析事件"] == "11"
+    assert labels["暂无样本事件"] == "35"
+    assert labels["样本家族"] == "11"
+    assert labels["已分析样本"] == "45"
+    assert labels["去重报告"] == "9"
+    assert labels["家族—报告映射"] == "11"
+    assert any("已入库" in item.value and "CLOSEDQUORUM" in item.value for item in app.info)
+
+
+def test_dashboard_handles_running_api_without_catalog_fields(monkeypatch):
+    ui = Path(__file__).resolve().parents[1] / "ui"
+    monkeypatch.syspath_prepend(str(ui))
+    from ui_utils import api
+
+    # A pre-update API process sees the migrated database values but retains
+    # its old response schema until restarted.
+    stats = {
+        "totals": {
+            "global_ai_security_events": 46, "analyzable_events": 11,
+            "events_without_samples": 35, "sample_families": 9,
+            "samples": 45, "logical_reports": 7,
+            "family_report_mappings": 9, "curated_research_events": 11,
+            "report_event_records": 18, "report_records": 9,
+            "analysis_cases": 13, "cross_validation_records": 22,
+            "event_records": 29,
+        },
+        "event_monthly": [], "knowledge_monthly": [],
+        "sample_classification": [], "sample_family_distribution": [],
+        "model_distribution": [], "scope": "旧接口", "as_of": "now",
+    }
+    monkeypatch.setattr(api, "get_json", lambda *args, **kwargs: stats)
+    app = AppTest.from_file(ui / "app_pages" / "dashboard.py")
+    app.session_state["api_base_url"] = "http://test.invalid"
+    app.run()
+    assert not app.exception
+    labels = {item.label: item.value for item in app.metric}
+    assert labels["样本家族"] == "11"
+    assert labels["去重报告"] == "9"
+    assert labels["家族—报告映射"] == "11"
+    assert any("重启 API" in item.value for item in app.warning)
     assert "已交叉验证对象" not in labels
 
 

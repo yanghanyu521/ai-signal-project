@@ -1,0 +1,201 @@
+{
+  "baseline_version": "1.0",
+  "results_dir": "data\\artifacts\\samples",
+  "total_samples": 19,
+  "scored": 19,
+  "missing_or_not_completed": 0,
+  "clean_samples": 19,
+  "finding_counts": {},
+  "details": [
+    {
+      "sha256": "f8f5e0440c57c7deffd75ca33e2511867039796aa803e7ef847396a379188a7d",
+      "family": "FRUITSHELL",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 1,
+        "actual_prompts": 1
+      }
+    },
+    {
+      "sha256": "384e8f3d300205546fb8c9b9224011b3b3cb71adc994180ff55e1e6416f65715",
+      "family": "LAMEHUG",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 4,
+        "actual_prompts": 4
+      }
+    },
+    {
+      "sha256": "5f6bfdd430a23afdc518857dfff25a29d85ead441dfa0ee363f4e73f240c89f4",
+      "family": "LAMEHUG",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 4,
+        "actual_prompts": 4
+      }
+    },
+    {
+      "sha256": "a67465075c91bb15b81e1f898f2b773196d3711d8e1fb321a9d6647958be436b",
+      "family": "LAMEHUG",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 4,
+        "actual_prompts": 4
+      }
+    },
+    {
+      "sha256": "ae6ed1721d37477494f3f755c124d53a7dd3e24e98c20f3a1372f45cc8130989",
+      "family": "LAMEHUG",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 2,
+        "actual_prompts": 2
+      }
+    },
+    {
+      "sha256": "cf4d430d0760d59e2fa925792f9e2b62d335eaf4d664d02bff16dd1b522a462a",
+      "family": "LAMEHUG",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 4,
+        "actual_prompts": 4
+      }
+    },
+    {
+      "sha256": "4c73717d933f6b53c40ed1b211143df8d011800897be1ceb5d4a2af39c9d4ccc",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 4,
+        "actual_prompts": 4
+      }
+    },
+    {
+      "sha256": "c86a5fcefbf039a72bd8ad5dc70bcb67e9c005f40a7bacd2f76c793f85e9a061",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 4,
+        "actual_prompts": 4
+      }
+    },
+    {
+      "sha256": "68ca559bf6654c7ca96c10abb4a011af1f4da0e6d28b43186d1d48d2f936684c",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 1,
+        "actual_prompts": 1
+      }
+    },
+    {
+      "sha256": "854b559bae2ce8700edd75808267cfb5f60d61ff451f0cf8ec1d689334ac8d0b",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 2,
+        "actual_prompts": 2
+      }
+    },
+    {
+      "sha256": "e88a7b9ad5d175383d466c5ad7ebd7683d60654d2fa2aca40e2c4eb9e955c927",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 2,
+        "actual_prompts": 2
+      }
+    },
+    {
+      "sha256": "c1a80983779d8408a9c303d403999a9aef8c2f0fe63f8b5ca658862f66f3db16",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 3,
+        "actual_prompts": 14
+      }
+    },
+    {
+      "sha256": "3afbb9fe6bab2cad83c52a3f1a12e0ce979fe260c55ab22a43c18035ff7d7f38",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 0,
+        "actual_prompts": 0
+      }
+    },
+    {
+      "sha256": "4ddbc14d8b6a301122c0ac6e22aef6340f45a3a6830bcdacf868c755a7162216",
+      "family": "MalTerminal",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 0,
+        "actual_prompts": 0
+      }
+    },
+    {
+      "sha256": "95a7dcc6de46826b22c43bee7fc550f3b5e2e6cbc5f33b0c241faf523641cf63",
+      "family": "PhantomRaven",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 0,
+        "actual_prompts": 0
+      }
+    },
+    {
+      "sha256": "db3fe46df0a65fe9f8c99d2e11126a032a72e9814e354ce017448ce088a01e02",
+      "family": "PhantomRaven",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 0,
+        "actual_prompts": 0
+      }
+    },
+    {
+      "sha256": "eb0687daed29f3651c61b0a2aa4a0cdcf2049a1ebae2e15e2dd9326471d318a1",
+      "family": "PROMPTFLUX",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 1,
+        "actual_prompts": 1
+      }
+    },
+    {
+      "sha256": "8eea1f65e468b515020e3e2854805f1ef5c611342fa23c4b31d8ed3374286a90",
+      "family": "QUIETVAULT",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 1,
+        "actual_prompts": 1
+      }
+    },
+    {
+      "sha256": "0884e5590bdf3763f8529453fbd24ee46a3a460bba4c2da5b0141f5ec6a35675",
+      "family": "SLOPOLY",
+      "status": "scored",
+      "findings": [],
+      "counts": {
+        "expected_prompts": 0,
+        "actual_prompts": 0
+      }
+    }
+  ]
+}

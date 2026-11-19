@@ -1,0 +1,47 @@
+{
+  "baseline_version": "1.0",
+  "family": "PROMPTFLUX",
+  "language": "vbscript",
+  "samples": [
+    {
+      "sha256": "eb0687daed29f3651c61b0a2aa4a0cdcf2049a1ebae2e15e2dd9326471d318a1",
+      "size_bytes": 4405310,
+      "analysis_scope": "script_with_ai_calls",
+      "obfuscation": "embedded PE split into 2170 base64 chunks (ExeDataParts array); AI logic itself is plaintext",
+      "ai_calling": true,
+      "llm_assisted_dev": false,
+      "toolchain": [{
+        "sdk": "MSXML2.ServerXMLHTTP.6.0 (fallback MSXML2.XMLHTTP / Microsoft.XMLHTTP)",
+        "service": "Google Generative Language API",
+        "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=<apiKey>",
+        "model": "gemini-1.5-flash-latest",
+        "model_vendor": "Google",
+        "auth": "hardcoded API key AIzaSyAmEdNC_8hjNMGjhvsnLUB-ySBb7SB97LM (line 2254), also embedded into every regenerated variant",
+        "parameters": {"temperature": 0.4, "maxOutputTokens": 4096, "topP": 0.9, "topK": 40},
+        "evidence": {"lines": "2253-2256, 2270, 2289-2294"}
+      }],
+      "prompts": [
+        {
+          "id": "vbs_self_regeneration",
+          "category": "program_prompt (self-regeneration / obfuscation)",
+          "text_prefix": "You are an expert VBScript obfuscator. Your task is to generate a new, fully functional VBScript.",
+          "key_elements": [
+            "decode base64 payload, write temp exe, execute it, clean up",
+            "MUST embed originalBase64ExeToEmbed and the apiKey for future regeneration",
+            "MUST include entire self-regeneration logic (ThingingRoutine, CallGeminiAPIForThinging, CreateUniqueScriptNameForThinging) verbatim or functionally identical",
+            "obfuscation: rename variables (keep functional names), split string literals for WScript.Shell/CreateObject/ADODB.Stream/etc, add benign junk code",
+            "output contract: pure VBScript only, no markdown fences"
+          ],
+          "dynamic_parts": ["originalBase64ExeToEmbed (the full payload)", "apiKey"],
+          "evidence": {"lines": "2272-2287"}
+        }
+      ],
+      "behavior_summary": "Drops and runs embedded PE, then ThingingRoutine loops hourly: asks Gemini to rewrite the whole VBS with fresh obfuscation, writes variant as syscore_morph_<timestamp>_<rand>.vbs into the user's Startup folder (persistence through self-regeneration).",
+      "network_indicators": ["generativelanguage.googleapis.com"],
+      "extraction_expectations": {
+        "must_find": ["gemini-1.5-flash-latest + Google endpoint", "self-regeneration prompt with all key elements", "hourly Startup-folder regeneration loop", "base64 payload is an embedded PE, not an AI feature"],
+        "must_not_claim": ["any other model", "that the base64 blob itself is a prompt"]
+      }
+    }
+  ]
+}

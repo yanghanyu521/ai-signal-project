@@ -225,12 +225,20 @@ def test_api_defaults_and_errors(platform, report_model, monkeypatch):
     assert result.status_code == 200
     assert result.json()["result_json"]["extraction"]["mode"] == "llm_only"
     assert len(report_model) == 2
+    # Identical bytes extracted for the same target are deduplicated without
+    # paying for a second non-deterministic LLM run.
+    again = client.post("/api/v1/reports/analyze", files=files, data={"target_name": "TARGET"})
+    assert again.status_code == 200
+    assert again.json()["deduplicated"] is True
+    assert again.json()["report_id"] == result.json()["report_id"]
+    assert len(report_model) == 2
     rejected = client.post("/api/v1/reports/analyze", files=files, data={"target_name": "TARGET", "use_llm": "false"})
     assert rejected.status_code == 400
     assert len(report_model) == 2
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("cc-api", raising=False)
-    missing = client.post("/api/v1/reports/analyze", files=files, data={"target_name": "TARGET"})
+    changed = {"file": ("report.txt", b"TARGET defensive fixture changed")}
+    missing = client.post("/api/v1/reports/analyze", files=changed, data={"target_name": "TARGET"})
     assert missing.status_code == 503
     assert len(repository.list_reports()) == 1
     failed_case = client.post("/api/v1/analysis-cases", files={"report_file": ("r.txt", b"TARGET")}, data={"target_name": "TARGET"})

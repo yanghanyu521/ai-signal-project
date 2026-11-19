@@ -106,8 +106,8 @@ def test_tool_facts_are_deduplicated_and_use_weighted_union():
 
 def test_tool_endpoint_drops_credentials_query_and_fragment():
     data = {"features": {"toolchain": {"evidence": [{"type": "endpoint",
-            "value": "https://user:secret@example.test/v1/chat?key=secret#private"}]}}}
-    assert sample_profile(data)["toolchain"] == {"endpoint:example.test/v1/chat": 1.5}
+            "value": "https://user:secret@api.openai.com/v1/chat?key=secret#private"}]}}}
+    assert sample_profile(data)["toolchain"] == {"endpoint:api.openai.com/v1/chat": 1.5}
 
 
 def test_prompt_exact_digest_compatible_with_bare_hash():
@@ -227,14 +227,33 @@ def test_empty_samples_are_singletons_and_api_explains_no_features(platform, mon
 
 def test_threshold_changes_clustering_not_candidate_visibility(platform):
     _, repo = platform
-    a, b = sample(model=None, prompt=False), sample("b", model=None, prompt=False)
+    a, b = sample(prompt=False), sample("b", prompt=False)
+    for result, vendor in ((a, "V"), (b, "W")):
+        result["features"]["code_style"] = {}
+        result["features"]["toolchain"] = {"evidence": [
+            {"type": "model_identifier", "normalized": {"model": "MODEL_A", "vendor": vendor}}]}
     put(repo, a, b)
     SampleSimilarityService(repo, distance_threshold=.45).rebuild()
     first = repo.sample_associations("a" * 64)["related_samples"][0]
-    assert first["overall_similarity"] == .2 and not first["same_cluster"]
+    # Weighted-Jaccard toolchain .5 x weight .5: raw overall .25, conditional .5.
+    assert first["overall_similarity"] == .25 and first["conditional_similarity"] == .5
+    assert not first["same_cluster"]
     SampleSimilarityService(repo, distance_threshold=.9).rebuild()
     second = repo.sample_associations("a" * 64)["related_samples"][0]
-    assert second["overall_similarity"] == .2 and second["same_cluster"]
+    assert second["overall_similarity"] == .25 and second["same_cluster"]
+
+
+def test_insufficient_coverage_pairs_do_not_cluster(platform):
+    _, repo = platform
+    a, b = sample(model=None, prompt=False), sample("b", model=None, prompt=False)
+    put(repo, a, b)
+    SampleSimilarityService(repo, distance_threshold=.95).rebuild()
+    pair = repo.sample_associations("a" * 64)["related_samples"][0]
+    # Only the code-style group (weight .2) is comparable: below MIN_COMPARABLE_WEIGHT.
+    assert pair["conditional_similarity"] == 1
+    assert pair["cluster_distance"] == 1.0
+    assert pair["cluster_distance_basis"] == "insufficient_comparable_weight"
+    assert not pair["same_cluster"]
 
 
 def test_corpus_outlier_does_not_change_existing_pair_and_raw_results_unchanged(platform):
@@ -327,3 +346,18 @@ def test_old_running_api_cannot_rebuild_through_new_ui(monkeypatch):
     assert not app.exception
     assert app.button[0].disabled
     assert any("重启" in item.value for item in app.warning)
+
+
+def test_compare_profiles_tolerates_legacy_component_without_status(monkeypatch):
+    from ai_signal_hub import similarity
+    monkeypatch.setattr(similarity, 'compare_toolchain', lambda left, right: {'score': None, 'matched_facts': []})
+    monkeypatch.setattr(similarity, 'compare_prompts', lambda left, right: {'score': None, 'matched_structure': [], 'matched_prompts': []})
+    monkeypatch.setattr(similarity, 'compare_code_style', lambda left, right: {
+        'score': 1.0, 'components': [
+            {'metric': 'loc', 'left': 1, 'right': 1, 'score': 1.0},
+            {'metric': 'comment_ratio', 'left': 0.1, 'right': 0.1, 'score': 1.0, 'status': 'comparable'},
+        ]})
+    result = similarity.compare_profiles(
+        {'toolchain': {}, 'prompt': {}, 'code_style': {}},
+        {'toolchain': {}, 'prompt': {}, 'code_style': {}})
+    assert result['common_features'] == ['code_style:equal:comment_ratio']

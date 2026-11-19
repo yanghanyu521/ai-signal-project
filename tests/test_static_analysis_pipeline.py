@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 import httpx
+import pytest
 
 from ai_signal_hub.config import Settings
 from ai_signal_hub.legacy import LegacyAdapters
@@ -180,7 +181,7 @@ def test_relation_anchor_promotes_llm_candidate_but_not_llm_role_claim(tmp_path:
 def test_sample_llm_reuses_deepseek_defaults_and_cc_api(monkeypatch) -> None:
     for name in ("SAMPLE_LLM_API_KEY", "DEEPSEEK_API_KEY", "SAMPLE_LLM_MODEL",
                  "DEEPSEEK_MODEL", "SAMPLE_LLM_BASE_URL", "DEEPSEEK_BASE_URL",
-                 "SAMPLE_LLM_ALLOW_REMOTE", "SAMPLE_LLM_TRANSFER_POLICY"):
+                 "SAMPLE_LLM_ALLOW_REMOTE", "SAMPLE_LLM_TRANSFER_POLICY", "SAMPLE_LLM_ENABLED"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("cc-api", "fixture-secret")
     settings = Settings()
@@ -214,6 +215,23 @@ def test_deepseek_v4_payload_uses_thinking_and_no_total_budget(monkeypatch) -> N
     assert captured["thinking"] == {"type": "enabled"}
     assert captured["reasoning_effort"] == "low"
     assert "temperature" not in captured
+
+
+def test_sample_llm_payment_error_is_reported_without_retry_or_body() -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(402, json={"error": "sensitive provider body"})
+
+    client = SampleLLMClient(
+        base_url="http://127.0.0.1:11434/v1", model="fixture",
+        api_key=None, allow_remote=False, transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(RuntimeError, match="HTTP 402") as exc:
+        client.analyze([])
+    assert len(calls) == 1
+    assert "sensitive provider body" not in str(exc.value)
 
 
 def test_remote_sample_llm_requires_explicit_policy() -> None:
@@ -315,7 +333,7 @@ def test_javascript_powershell_and_binary_have_truthful_material_status() -> Non
     assert js.status == ps.status == "partial"
     assert js.capabilities["functions"] is True and js.capabilities["xrefs"] is False
     assert ps.capabilities["functions"] is True and ps.capabilities["dataflow"] is False
-    assert binary.status == "partial" and "no_decompiler_material" in binary.limitations
+    assert binary.status == "partial" and "decompilation_disabled_v08" in binary.limitations
 
 
 def test_archive_member_paths_assign_static_roles() -> None:
@@ -331,6 +349,23 @@ def test_archive_member_paths_assign_static_roles() -> None:
     assert roles["app/main.py"] == "application"
     assert roles["vendor/sdk.py"] == "dependency"
     assert roles["examples/demo.py"] == "example"
+
+
+def test_archive_recovers_bounded_large_pe_member_without_execution() -> None:
+    member = b"MZ" + b"\x00" * (2 * 1024 * 1024) + b"fixture-private-model-v1\x00"
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("payload.dat", member)
+        archive.writestr("picture.pif", b"JPEG" + b"\x00" * (2 * 1024 * 1024))
+    sample_info = {"sha256": "a" * 64, "language": None, "file_type": "Zip archive"}
+    index = build_material_index(buffer.getvalue(), sample_info)
+    assert index.status == "partial"
+    assert index.recovery_coverage["members_considered"] == 1
+    assert index.recovery_coverage["members_recovered"] == 1
+    assert index.recovery_coverage["members_rejected_by_limit"] == 1
+    assert index.recovery_coverage["member_bytes_scanned"] == len(member)
+    assert any("fixture-private-model-v1" in unit.content
+               and unit.location["member_path"] == "payload.dat" for unit in index.units)
 
 
 def test_sample_analysis_runs_are_append_only(tmp_path: Path) -> None:

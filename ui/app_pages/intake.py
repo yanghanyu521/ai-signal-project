@@ -7,12 +7,11 @@ from ui_utils.api import ApiError, api_base_url, get_json, post_files
 from ui_utils.presenters import render_event_context_editor, render_joint_summary
 
 
-st.title("样本与报告联合分析")
+st.title(":material/add_link: 样本与报告联合分析")
 st.caption("一个案例代表一组明确对应的样本与技术报告。可以同时上传，也可以先建案例、后续补齐另一侧。")
 st.warning("恶意样本仅做纯静态分析，禁止执行、导入、调试、仿真或上传外部服务。")
 
-with st.container(border=True):
-    st.subheader("怎么操作")
+with st.expander("操作指引", icon=":material/menu_book:"):
     st.markdown(
         "1. 首次分析选择“新建分析案例”，上传样本和/或报告。\n"
         "2. 如果先只上传样本，之后回到本页选择原案例，只上传对应报告即可。\n"
@@ -70,6 +69,7 @@ if selected_case_id:
             st.info("该案例正在等待报告：本次只需上传对应报告，并确认目标样本/家族名称。", icon=":material/info:")
 
 with st.form("joint_analysis", border=True):
+    st.subheader(":material/looks_one: 案例信息")
     title = st.text_input(
         "案例标题",
         value="" if not selected_case_detail else selected_case_detail["title"],
@@ -77,15 +77,22 @@ with st.form("joint_analysis", border=True):
         disabled=selected_case_detail is not None,
     )
     notes = st.text_area("备注（可选）", height=80)
+    st.subheader(":material/looks_two: 样本与报告")
     left, right = st.columns(2)
     with left:
-        st.subheader("样本侧")
-        sample_file = st.file_uploader("上传新样本", key="joint_sample")
+        st.subheader(":material/bug_report: 样本侧")
+        sample_file = st.file_uploader(
+            "上传新样本（仅脚本文件）",
+            type=["py", "pyw", "ps1", "psm1", "psd1", "js", "mjs", "cjs", "vbs", "vbe",
+                  "sh", "bash", "bat", "cmd", "php", "pl", "rb", "lua", "txt"],
+            key="joint_sample",
+            help="仅分析脚本源码中的 AI 工具链与提示词特征；PE/ELF/APK 等二进制不再分析，会被 API 拒绝。无扩展名脚本也可上传。",
+        )
         selected_sample = st.selectbox("或者选择已有样本", list(sample_options))
         source_case = st.text_input("样本来源/家族", value=case_target, placeholder="例如 PROMPTFLUX")
         st.caption("未知样本会新增入库；SHA-256 已存在时更新原记录，不会重复新增样本。")
     with right:
-        st.subheader("报告侧")
+        st.subheader(":material/article: 报告侧")
         report_file = st.file_uploader(
             "上传新报告", type=["pdf", "html", "htm", "docx", "md", "txt"], key="joint_report"
         )

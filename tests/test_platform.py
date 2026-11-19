@@ -6,12 +6,32 @@ from pathlib import Path
 import pytest
 
 from ai_signal_hub.repository import Repository
+from ai_signal_hub.database import Database
 from ai_signal_hub.services import HubService
 from ai_signal_hub.similarity import extract_feature_groups
 from ai_signal_hub.storage import UploadTooLarge, safe_report_suffix, stream_to_temporary
 
 
 PROJECT = Path(__file__).resolve().parents[1]
+
+
+def test_event_inventory_scope_upgrades_previous_defaults_only(tmp_path: Path) -> None:
+    database = Database(tmp_path / "knowledge.db")
+    database.initialize()
+    with database.connect() as connection:
+        connection.execute(
+            "UPDATE knowledge_metrics SET metric_value=25, source='business_scope_2026-09-05' "
+            "WHERE metric_key='global_ai_security_events'"
+        )
+        connection.execute(
+            "UPDATE knowledge_metrics SET metric_value=9, source='business_scope_2026-09-05' "
+            "WHERE metric_key='analyzable_events'"
+        )
+    database.initialize()
+    totals = Repository(database).statistics()["totals"]
+    assert (totals["global_ai_security_events"], totals["analyzable_events"]) == (46, 11)
+    assert totals["events_without_samples"] == 35
+    assert (totals["catalog_sample_families"], totals["catalog_logical_reports"], totals["catalog_family_report_mappings"]) == (11, 9, 11)
 
 
 def test_storage_limits_and_report_whitelist(tmp_path: Path) -> None:
@@ -47,9 +67,12 @@ def test_legacy_import_is_idempotent(platform: tuple[HubService, Repository]) ->
     stats = repository.statistics()
     assert stats["totals"]["samples"] == 45
     assert stats["totals"]["events"] == 11
-    assert stats["totals"]["global_ai_security_events"] == 25
-    assert stats["totals"]["analyzable_events"] == 9
-    assert stats["totals"]["events_without_samples"] == 16
+    assert stats["totals"]["global_ai_security_events"] == 46
+    assert stats["totals"]["analyzable_events"] == 11
+    assert stats["totals"]["events_without_samples"] == 35
+    assert stats["totals"]["catalog_sample_families"] == 11
+    assert stats["totals"]["catalog_logical_reports"] == 9
+    assert stats["totals"]["catalog_family_report_mappings"] == 11
     assert stats["totals"]["sample_families"] == 9
     assert stats["totals"]["logical_reports"] == 7
     assert stats["totals"]["family_report_mappings"] == 9
@@ -99,6 +122,9 @@ def test_sample_report_cross_validation_and_report_generation(
     assert generated["snapshot"]["totals"]["samples"] == 1
     assert generated["snapshot"]["totals"]["reports"] == 1
     assert generated["snapshot"]["totals"]["sample_families"] == 1
+    assert generated["snapshot"]["totals"]["catalog_sample_families"] == 11
+    assert "46 个" in generated["content"]
+    assert "新增的 CLOSEDQUORUM 与 CL-UNK-1211" in generated["content"]
     assert Path(generated["file_path"]).is_file()
 
 

@@ -87,6 +87,7 @@ class Database:
             updated_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_reports_date ON reports(publication_date);
+        CREATE INDEX IF NOT EXISTS idx_reports_content_sha256 ON reports(content_sha256);
 
         CREATE TABLE IF NOT EXISTS events (
             id TEXT PRIMARY KEY,
@@ -224,6 +225,24 @@ class Database:
         );
         CREATE INDEX IF NOT EXISTS idx_sample_rel_source ON sample_relations(source_sample_id, overall_similarity DESC);
         CREATE INDEX IF NOT EXISTS idx_sample_rel_target ON sample_relations(target_sample_id, overall_similarity DESC);
+
+        CREATE TABLE IF NOT EXISTS security_event_library (
+            event_id TEXT PRIMARY KEY,
+            event_date TEXT,
+            name TEXT NOT NULL,
+            event_types TEXT NOT NULL,
+            summary TEXT,
+            source TEXT,
+            sample_raw TEXT,
+            sample_detail TEXT NOT NULL,
+            has_samples INTEGER NOT NULL,
+            sample_count INTEGER NOT NULL,
+            first_seen_at TEXT,
+            updated_at TEXT,
+            status TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_security_events_date ON security_event_library(event_date);
+        CREATE INDEX IF NOT EXISTS idx_security_events_seen ON security_event_library(first_seen_at);
         """
         with self.connect() as connection:
             connection.executescript(schema)
@@ -234,8 +253,24 @@ class Database:
                 VALUES(?,?,?,?,?)
                 """,
                 (
-                    ("global_ai_security_events", 25, "全球AI安全事件", "business_scope_2026-09-05", now),
-                    ("analyzable_events", 9, "有样本、可分析事件", "business_scope_2026-09-05", now),
+                    ("global_ai_security_events", 46, "全球AI安全事件", "event_inventory_2026-10-17", now),
+                    ("analyzable_events", 11, "有样本、可分析事件", "event_inventory_2026-10-17", now),
+                    ("catalog_sample_families", 11, "事件库可分析样本家族", "event_inventory_2026-10-17", now),
+                    ("catalog_logical_reports", 9, "事件库去重报告", "event_inventory_2026-10-17", now),
+                    ("catalog_family_report_mappings", 11, "事件库家族报告映射", "event_inventory_2026-10-17", now),
+                ),
+            )
+            # Upgrade only the previous built-in business scope. User-managed
+            # knowledge metrics with another source are not overwritten.
+            connection.executemany(
+                """
+                UPDATE knowledge_metrics
+                SET metric_value=?, label=?, source=?, updated_at=?
+                WHERE metric_key=? AND metric_value=? AND source='business_scope_2026-09-05'
+                """,
+                (
+                    (46, "全球AI安全事件", "event_inventory_2026-10-17", now, "global_ai_security_events", 25),
+                    (11, "有样本、可分析事件", "event_inventory_2026-10-17", now, "analyzable_events", 9),
                 ),
             )
             # Additive migration: keep historical numeric columns and raw results.

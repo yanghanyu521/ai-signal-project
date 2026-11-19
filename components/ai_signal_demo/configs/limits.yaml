@@ -2,7 +2,7 @@ max_file_bytes: 104857600
 max_strings: 5000
 max_string_chars: 4096
 max_prompt_candidates: 100
-pyinstaller_recovery_enabled: true
+pyinstaller_recovery_enabled: false
 pyinstaller_timeout_seconds: 120
 apk_member_scan_enabled: true
 apk_max_members: 5000

@@ -1,0 +1,76 @@
+{
+  "baseline_version": "1.0",
+  "description": "报告侧基准特征：来自 components/seed_data/reports 的既有抽取结果，经人工核对后标注与样本侧的预期交叉验证关系。报告侧原文证据以种子中的 evidence_ids 为准。",
+  "families": [
+    {
+      "family": "LAMEHUG",
+      "reports": [
+        {"source": "GTIG AI Threat Tracker (Google Cloud)", "event": "PROMPTSTEAL (aliases: LAMEHUG)", "toolchain": ["Qwen2.5-Coder-32B-Instruct", "Hugging Face API"], "prompt_availability": "described_only (command_generation)", "attribution": {"actor": "APT28", "aliases": ["FROZENLAKE"], "type": "state_sponsored", "country": "Russia", "confidence": "high"}},
+        {"source": "CERT-UA", "event": "LAMEHUG (aliases: PROMPTSTEAL)", "toolchain": ["LLM (generic)"], "attribution": {"actor": "APT28"}}
+      ],
+      "cross_validation_expectations": [
+        {"field": "model Qwen/Qwen2.5-Coder-32B-Instruct", "relation": "supports", "note": "样本侧 router.huggingface.co + 同模型名，精确一致"},
+        {"field": "Hugging Face API", "relation": "supports", "note": "样本侧 hf_ token + HF router 端点"},
+        {"field": "APT28 / Russia / FROZENLAKE", "relation": "complements", "note": "样本侧无法验证组织与国家，禁止让模型判定该字段为 supports/contradicts"},
+        {"field": "flux-dev 图像生成", "relation": "complements", "note": "报告未提及，样本侧独有补充"}
+      ]
+    },
+    {
+      "family": "MalTerminal",
+      "reports": [
+        {"source": "SentinelOne (2025-09-19)", "event": "MalTerminal", "toolchain": ["GPT-4"], "attribution": {"actors": []}, "artifacts": "报告列出多个样本 SHA-256，含被排除的6个负例"}
+      ],
+      "cross_validation_expectations": [
+        {"field": "GPT-4", "relation": "complements", "note": "仅 c1a80983779d 使用 gpt-4；其余样本为 gpt-3.5-turbo/-1106。报告为家族级概括，不应判 contradicts，也不应对 gpt-3.5 样本判 supports"},
+        {"field": "openai SDK", "relation": "supports", "note": "所有明文样本一致"}
+      ]
+    },
+    {
+      "family": "PROMPTFLUX",
+      "reports": [
+        {"source": "GTIG AI Threat Tracker", "event": "PROMPTFLUX", "toolchain": ["gemini-1.5-flash-latest"], "prompt_purposes": ["self_rewriting", "analysis_evasion"], "time": {"start": "2025-06", "precision": "month", "description": "early June 2025"}}
+      ],
+      "cross_validation_expectations": [
+        {"field": "gemini-1.5-flash-latest", "relation": "supports"},
+        {"field": "self_rewriting / analysis_evasion", "relation": "supports", "note": "样本侧 ThingingRoutine 每小时自我再生 + 混淆指令"},
+        {"field": "2025-06 时间", "relation": "complements", "note": "样本侧无时间证据"}
+      ]
+    },
+    {
+      "family": "QUIETVAULT",
+      "reports": [
+        {"source": "GTIG AI Threat Tracker", "event": "QUIETVAULT", "toolchain": ["on-host installed AI CLI tools"], "prompt_purposes": ["secret_discovery"]},
+        {"source": "Splunk (2026-05-13)", "event": "QUIETVAULT", "toolchain": []}
+      ],
+      "cross_validation_expectations": [
+        {"field": "AI CLI 工具", "relation": "supports", "note": "样本侧 claude/gemini/q 三个 CLI 调用"},
+        {"field": "secret_discovery", "relation": "supports", "note": "file-search agent prompt + 环境变量/gh token/npm 凭据收集"}
+      ]
+    },
+    {
+      "family": "FRUITSHELL",
+      "reports": [
+        {"source": "GTIG AI Threat Tracker", "event": "FRUITSHELL", "toolchain": ["LLM (generic)"], "prompt_purposes": ["analysis_evasion"]}
+      ],
+      "cross_validation_expectations": [
+        {"field": "analysis_evasion", "relation": "supports", "note": "样本侧第3行分析器注入注释"}
+      ]
+    },
+    {
+      "family": "SLOPOLY",
+      "reports": [
+        {"source": "IBM (2026-03-12)", "event": "SLOPOLY", "toolchain": ["LLM (generic)"], "attribution": {"actor": "Hive0163", "type": "cybercrime"}, "artifacts": ["0884e5590bdf3763f8529453fbd24ee46a3a460bba4c2da5b0141f5ec6a35675"]}
+      ],
+      "cross_validation_expectations": [
+        {"field": "LLM 辅助开发", "relation": "complements", "note": "样本侧无 AI 调用，报告 LLM 增强开发说法只能由文体弱佐证，禁止升级为 supports"},
+        {"field": "Hive0163", "relation": "complements"}
+      ]
+    },
+    {
+      "family": "PhantomRaven",
+      "reports": [],
+      "cross_validation_expectations": [],
+      "note": "种子库暂无 PhantomRaven 报告；如后续补充报告，应新增对应基准条目"
+    }
+  ]
+}

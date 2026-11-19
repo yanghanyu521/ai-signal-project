@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import re
+import threading
 from collections import Counter
 from typing import Any
 from urllib.parse import urlsplit
@@ -12,13 +13,20 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.cluster import AgglomerativeClustering
 
 from .repository import Repository
+from .static_analysis.semantic_discovery import is_ai_toolchain_fact
+from .stylometry.similarity import compare_fingerprints
 
 
-ALGORITHM_VERSION = "ai-signal-evidence-pairwise-v2.1"
+ALGORITHM_VERSION = "ai-signal-evidence-pairwise-v0.8.1"
 GROUP_WEIGHTS = {"toolchain": 0.5, "prompt": 0.3, "code_style": 0.2}
 SIMHASH_ALGORITHM = "simhash64_normalized_tokens_v1"
 SIMHASH_MAX_DISTANCE = 8
 STRUCTURE_ONLY_CAP = 0.2
+# Clustering distance is 1 - conditional_similarity (the fused score divided by
+# the comparable weight coverage). Pairs below this coverage carry too little
+# shared evidence for a distance to be meaningful, so they are parked at
+# distance 1.0 instead of being pushed apart only because evidence is missing.
+MIN_COMPARABLE_WEIGHT = 0.3
 TOOL_WEIGHTS = {"vendor": 1.0, "family": 1.5, "model": 2.0,
                 "sdk": 1.0, "sdk_vendor": 1.0, "endpoint": 1.5,
                 "service": 1.5, "ai_cli": 1.0}
@@ -47,6 +55,8 @@ def _tool_features(result: dict) -> dict[str, float]:
             facts[f"{kind}:{_token(value)}"] = TOOL_WEIGHTS[kind]
 
     for evidence in result.get("features", {}).get("toolchain", {}).get("evidence", []) or []:
+        if not is_ai_toolchain_fact(evidence):
+            continue
         normalized = evidence.get("normalized") or {}
         # Model identity, SDK identity and service identity are independent
         # dimensions. In particular, an OpenAI-compatible SDK is not proof
@@ -107,11 +117,14 @@ def _prompt_profile(result: dict) -> dict:
         if item.get("fuzzy_hash") and fuzzy is None:
             invalid += 1
         if exact or fuzzy is not None:
-            key = exact or f"simhash64:{fuzzy:016x}"
+            category = item.get("prompt_role") or (
+                "analyzer_directive" if item.get("role") == "analyzer_directive" else "program_prompt")
+            key = (category, exact or f"simhash64:{fuzzy:016x}")
             completeness = item.get("completeness") or "legacy_complete_text"
             # Repeated copies of a prompt must not inflate overlap.
             if key not in records or (records[key]["fuzzy"] is None and fuzzy is not None):
-                records[key] = {"exact": exact, "fuzzy": fuzzy, "completeness": completeness}
+                records[key] = {"exact": exact, "fuzzy": fuzzy, "completeness": completeness,
+                                "category": category}
     structure = {f"flag:{key}": 1.0 for key, value in (prompt.get("structural_features") or {}).items()
                  if value is True}
     for item in prompt.get("special_tokens", []) or []:
@@ -124,6 +137,16 @@ def _prompt_profile(result: dict) -> dict:
 
 def _code_profile(result: dict) -> dict:
     style = result.get("features", {}).get("code_style", {})
+    generation = result.get("features", {}).get("code_generation_signals") or {}
+    fingerprint = generation.get("fingerprint")
+    if fingerprint is not None:
+        return {"language": fingerprint.get("language"), "source_kind": fingerprint.get("source_kind"),
+                "metrics": fingerprint.get("metrics") or {}, "reason": None,
+                "metrics_method": fingerprint.get("fingerprint_version"),
+                "available": fingerprint.get("information_status") == "comparable",
+                "excluded_recovered_layers": len(style.get("recovered_layers") or []),
+                "method": "stylometry_fingerprint", "fingerprint": fingerprint,
+                "local_profiles": generation.get("local_profiles") or []}
     language = style.get("language")
     source = style.get("recoverability")
     metrics = style.get("metrics") or {}
@@ -203,6 +226,8 @@ def _prompt_scope(item: dict) -> str:
 
 
 def _prompt_pair(left: dict, right: dict) -> tuple[float, str, int | None]:
+    if left.get("category", "program_prompt") != right.get("category", "program_prompt"):
+        return 0.0, "different_prompt_category", None
     if _prompt_scope(left) != _prompt_scope(right):
         return 0.0, "different_completeness", None
     if left["exact"] and left["exact"] == right["exact"]:
@@ -248,6 +273,8 @@ def compare_prompts(left: dict, right: dict) -> dict:
 
 
 def compare_code_style(left: dict, right: dict) -> dict:
+    if left.get("fingerprint") or right.get("fingerprint"):
+        return compare_fingerprints(left.get("fingerprint"), right.get("fingerprint"))
     if not left["available"] or not right["available"]:
         return _unavailable("invalid_source_quality", left_reason=left["reason"], right_reason=right["reason"])
     if left["language"] != right["language"]:
@@ -303,7 +330,7 @@ def compare_profiles(left: dict, right: dict, weights: dict | None = None) -> di
     common += ["prompt:" + match["method"] for match in groups["prompt"].get("matched_prompts", [])]
     # Do not call the mere existence of a metric a shared feature.
     common += ["code_style:equal:" + part["metric"] for part in groups["code_style"].get("components", [])
-               if part["status"] == "comparable" and part["score"] == 1.0]
+               if part.get("status") == "comparable" and part.get("score") == 1.0]
     return {"overall_similarity": total if coverage else None,
             **{group + "_similarity": detail["score"] for group, detail in groups.items()},
             "common_features": list(dict.fromkeys(common)),
@@ -329,50 +356,98 @@ def profile_diagnostics(profile: dict) -> dict:
 
 
 class SampleSimilarityService:
-    def __init__(self, repository: Repository, distance_threshold: float = 0.45, weights: dict | None = None):
+    def __init__(self, repository: Repository, distance_threshold: float = 0.45,
+                 weights: dict | None = None, min_comparable_weight: float = MIN_COMPARABLE_WEIGHT):
         if not _number(distance_threshold) or not 0 < distance_threshold < 1:
             raise ValueError("聚类距离阈值必须大于0且小于1")
+        if not _number(min_comparable_weight) or not 0 < min_comparable_weight <= 1:
+            raise ValueError("聚类可比权重下限必须大于0且不超过1")
         self.repository = repository
         self.distance_threshold = distance_threshold
         self.weights = _weights(weights)
+        self.min_comparable_weight = float(min_comparable_weight)
+        self.lock = threading.RLock()
 
     def rebuild(self) -> dict[str, Any]:
-        samples = self.repository.all_sample_results()
-        if not samples:
-            return {"algorithm_version": ALGORITHM_VERSION, "sample_count": 0, "cluster_count": 0}
-        shas = [item["sha256"] for item in samples]
-        profiles = [sample_profile(item["result_json"]) for item in samples]
-        distances = np.ones((len(samples), len(samples)))
-        np.fill_diagonal(distances, 0.0)
-        relations = []
-        for left in range(len(samples)):
-            for right in range(left + 1, len(samples)):
-                result = compare_profiles(profiles[left], profiles[right], self.weights)
-                score = result["overall_similarity"] or 0.0
-                distances[left, right] = distances[right, left] = max(0.0, 1 - score)
-                relations.append({"source_sample_id": shas[left], "target_sample_id": shas[right], **result})
-        if len(samples) == 1:
-            raw_labels = np.array([0])
-        else:
-            raw_labels = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average",
-                                                distance_threshold=self.distance_threshold).fit_predict(distances)
-        members = {}
-        for sha, label in zip(shas, raw_labels, strict=True):
-            members.setdefault(int(label), []).append(sha)
-        label_map = {label: f"C{index:03d}" for index, label in enumerate(sorted(members, key=lambda k: min(members[k])), 1)}
-        labels = {sha: label_map[int(label)] for sha, label in zip(shas, raw_labels, strict=True)}
-        sizes = Counter(labels.values())
-        for relation in relations:
-            relation["same_cluster"] = labels[relation["source_sample_id"]] == labels[relation["target_sample_id"]]
-        run = self.repository.replace_sample_similarity(
-            algorithm_version=ALGORITHM_VERSION, distance_threshold=self.distance_threshold,
-            clusters=[{"sample_id": sha, "cluster_label": labels[sha], "cluster_size": sizes[labels[sha]],
-                       "details": profile_diagnostics(profile)} for sha, profile in zip(shas, profiles, strict=True)],
-            relations=relations, expected_samples=samples, details={"weights": self.weights, "distance": "1-fixed_weight_similarity",
-                "linkage": "average", "simhash_max_distance": SIMHASH_MAX_DISTANCE,
-                "structure_only_cap": STRUCTURE_ONLY_CAP, "corpus_scaling": False,
-                "synthetic_features": False, "threshold_calibration": "engineering_default_not_benchmark_calibrated"})
-        return {**run, "weights": self.weights, "interpretation": "证据候选关联，不是同源、同模型或AI生成概率"}
+        with self.lock:
+            samples = self.repository.all_sample_results()
+            if not samples:
+                return {"algorithm_version": ALGORITHM_VERSION, "sample_count": 0, "cluster_count": 0}
+            shas = [item["sha256"] for item in samples]
+            profiles = [sample_profile(item["result_json"]) for item in samples]
+            distances = np.ones((len(samples), len(samples)))
+            np.fill_diagonal(distances, 0.0)
+            relations = []
+            for left in range(len(samples)):
+                for right in range(left + 1, len(samples)):
+                    result = compare_profiles(profiles[left], profiles[right], self.weights)
+                    details = result["details"]
+                    coverage = details["comparable_weight"]
+                    conditional = details["conditional_similarity"]
+                    if conditional is not None and coverage >= self.min_comparable_weight:
+                        distance = max(0.0, 1 - conditional)
+                        basis = "conditional_similarity"
+                    else:
+                        # Missing evidence must not push samples apart, and weak
+                        # coverage must not pull them together: no usable distance.
+                        distance = 1.0
+                        basis = "not_comparable" if conditional is None else "insufficient_comparable_weight"
+                    details["cluster_distance"] = distance
+                    details["cluster_distance_basis"] = basis
+                    details["min_comparable_weight"] = self.min_comparable_weight
+                    distances[left, right] = distances[right, left] = distance
+                    relations.append({"source_sample_id": shas[left], "target_sample_id": shas[right], **result})
+            if len(samples) == 1:
+                raw_labels = np.array([0])
+            else:
+                raw_labels = AgglomerativeClustering(n_clusters=None, metric="precomputed", linkage="average",
+                                                    distance_threshold=self.distance_threshold).fit_predict(distances)
+            members = {}
+            for sha, label in zip(shas, raw_labels, strict=True):
+                members.setdefault(int(label), []).append(sha)
+            label_map = {label: f"C{index:03d}" for index, label in enumerate(sorted(members, key=lambda k: min(members[k])), 1)}
+            labels = {sha: label_map[int(label)] for sha, label in zip(shas, raw_labels, strict=True)}
+            sizes = Counter(labels.values())
+            for relation in relations:
+                relation["same_cluster"] = labels[relation["source_sample_id"]] == labels[relation["target_sample_id"]]
+            run = self.repository.replace_sample_similarity(
+                algorithm_version=ALGORITHM_VERSION, distance_threshold=self.distance_threshold,
+                clusters=[{"sample_id": sha, "cluster_label": labels[sha], "cluster_size": sizes[labels[sha]],
+                           "details": profile_diagnostics(profile)} for sha, profile in zip(shas, profiles, strict=True)],
+                relations=relations, expected_samples=samples, details={"weights": self.weights,
+                    "distance": "1-conditional_similarity_when_coverage>=min_else_1.0",
+                    "min_comparable_weight": self.min_comparable_weight,
+                    "linkage": "average", "simhash_max_distance": SIMHASH_MAX_DISTANCE,
+                    "structure_only_cap": STRUCTURE_ONLY_CAP, "corpus_scaling": False,
+                    "synthetic_features": False,
+                    "threshold_calibration": "engineering_default_not_benchmark_calibrated"})
+            return {**run, "weights": self.weights, "min_comparable_weight": self.min_comparable_weight,
+                    "interpretation": "证据候选关联，不是同源、同模型或AI生成概率"}
 
     def associations(self, sha256: str, limit: int = 10, include_unmatched: bool = False) -> dict[str, Any]:
         return self.repository.sample_associations(sha256, limit, include_unmatched=include_unmatched)
+
+    def style_neighbors(self, sha256: str, limit: int = 10, include_unmatched: bool = False) -> dict[str, Any]:
+        samples = {item["sha256"]: item for item in self.repository.all_sample_results()}
+        if sha256 not in samples:
+            raise KeyError(sha256)
+        families = self.repository.sample_family_map()
+        source = sample_profile(samples[sha256]["result_json"])["code_style"]
+        neighbors = []
+        for other_sha, item in samples.items():
+            if other_sha == sha256:
+                continue
+            target = sample_profile(item["result_json"])["code_style"]
+            comparison = compare_code_style(source, target)
+            if include_unmatched or comparison["score"] is not None and comparison["score"] > 0:
+                neighbors.append({"related_sha256": other_sha,
+                                  "source_case": families.get(other_sha),
+                                  "code_style_similarity": comparison["score"],
+                                  "comparison": comparison})
+        neighbors.sort(key=lambda item: (item["code_style_similarity"] is not None,
+                                         item["code_style_similarity"] or 0), reverse=True)
+        return {"sample_sha256": sha256, "view": "code_stylometry",
+                "fingerprint_version": (source.get("fingerprint") or {}).get("fingerprint_version"),
+                "source_status": "available" if source["available"] else "not_comparable",
+                "related_samples": neighbors[:limit],
+                "interpretation": "仅比较代码文体，不使用工具链、模型名或Prompt；分数不是生成模型概率"}

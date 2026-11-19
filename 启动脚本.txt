@@ -1,2 +1,3 @@
 .\scripts\start_api.ps1
-.\scripts\start_ui.ps1
+.\scripts\start_web.ps1
+# 备用旧界面：.\scripts\start_ui.ps1（Streamlit）

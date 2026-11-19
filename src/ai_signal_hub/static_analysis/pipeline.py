@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -9,11 +10,58 @@ from typing import Any
 from .llm import SampleLLMClient
 from .materials import MaterialIndex, build_material_index, split_large_units
 from .query import StaticQueryService
+from .semantic_discovery import semantic_context_status
+
+
+def _prompt_role(raw: str, context: str, relation_verified: bool) -> str:
+    lowered = raw.casefold()
+    if any(term in lowered for term in (
+        "do not analyze", "ignore your instructions",
+        "不要分析", "忽略之前的指令", "you are an analyst", "你是分析器",
+    )):
+        return "analyzer_injection"
+    if any(term in lowered for term in (
+        "ignore all previous", "ignore previous instructions", "bypass safety", "disregard safety", "jailbreak",
+        "忽略所有之前", "绕过安全", "越狱",
+    )):
+        return "jailbreak_prompt"
+    if relation_verified or any(term in lowered for term in (
+        "summarize", "classify", "generate", "translate", "analyze", "write",
+        "总结", "分类", "生成", "翻译", "分析", "编写",
+    )) or re.search(r"(?i)\b(?:messages|prompt|system)\b", context):
+        return "program_prompt"
+    return "ordinary_text"
 
 
 def _estimate_tokens(text: str) -> int:
     # Conservative scheduling estimate only; actual provider usage is retained.
     return max(1, (len(text.encode("utf-8")) + 2) // 3)
+
+
+def _llm_unit_payload(unit: Any) -> dict[str, Any]:
+    value = unit.as_dict(include_content=True)
+    location = value.get("location") or {}
+    if "string_entries" in location:
+        value["location"] = {key: item for key, item in location.items()
+                             if key != "string_entries"}
+    return value
+
+
+def _string_weight(unit: Any) -> int:
+    return int(unit.location.get("string_count") or 1) if unit.kind == "string" else 0
+
+
+def _raw_span(unit: Any, raw: str) -> tuple[int, dict[str, Any] | None] | None:
+    entries = unit.location.get("string_entries") or []
+    if entries:
+        for entry in entries:
+            value = unit.content[entry["start_char"]:entry["end_char"]]
+            relative = value.find(raw)
+            if relative >= 0:
+                return entry["start_char"] + relative, entry
+        return None
+    offset = unit.content.find(raw)
+    return (offset, None) if offset >= 0 else None
 
 
 def _batch_units(units: list[Any], max_input_tokens: int) -> list[list[Any]]:
@@ -25,7 +73,7 @@ def _batch_units(units: list[Any], max_input_tokens: int) -> list[list[Any]]:
     current: list[Any] = []
     current_tokens = 0
     for unit in units:
-        estimate = _estimate_tokens(json.dumps(unit.as_dict(include_content=True), ensure_ascii=False))
+        estimate = _estimate_tokens(json.dumps(_llm_unit_payload(unit), ensure_ascii=False))
         if current and current_tokens + estimate > target:
             batches.append(current)
             current = []
@@ -80,14 +128,27 @@ def _validate_facts(
         if not isinstance(ids, list) or not ids or any(unit_id not in units for unit_id in ids):
             rejected.append({"reason": "invalid_source_reference", "candidate": candidate})
             continue
-        containing = [units[unit_id] for unit_id in ids if raw in units[unit_id].content]
+        containing = [units[unit_id] for unit_id in ids if _raw_span(units[unit_id], raw) is not None]
         if not containing:
             rejected.append({"reason": "raw_value_not_in_material", "candidate": candidate})
             continue
         first = containing[0]
-        char_offset = first.content.find(raw)
+        char_offset, string_entry = _raw_span(first, raw)
         line_start = first.location.get("source_lines", [None])[0]
         source_line = line_start + first.content[:char_offset].count("\n") if isinstance(line_start, int) else None
+        source_location = {"unit_id": first.unit_id, "line": source_line,
+                           "unit_char_offset": char_offset}
+        if string_entry:
+            prefix = first.content[string_entry["start_char"]:char_offset]
+            codec = {"ascii": "ascii", "utf8": "utf-8", "utf16le": "utf-16le",
+                     "utf16be": "utf-16be", "utf16le_cjk": "utf-16le",
+                     "utf16be_cjk": "utf-16be", "dex_mutf8": "utf-8"}.get(
+                         string_entry["encoding"], "utf-8")
+            byte_shift = len(prefix.encode(codec, errors="replace"))
+            source_location.update({"file_offset": string_entry["file_offset"] + byte_shift,
+                                    "string_encoding": string_entry["encoding"],
+                                    "member_path": first.location.get("member_path"),
+                                    "pe_section": string_entry.get("pe_section")})
         normalized = candidate.get("normalized_value") if isinstance(candidate.get("normalized_value"), dict) else {}
         # SDK identity never becomes model identity without a separately cited value.
         if not normalized.get("model_identifier_raw"):
@@ -121,21 +182,27 @@ def _validate_facts(
         } else "unknown"
         material_roles = {unit.probable_role for unit in containing}
         role = next(iter(material_roles)) if len(material_roles) == 1 else "unknown"
-        role_state = "verified" if role != "unknown" else "unknown"
         relation_verified = any(
             _anchor_matches(anchor, group, raw, containing) for anchor in (relation_anchors or [])
         )
+        prompt_role = _prompt_role(raw, material_text, relation_verified) if group == "prompt" else None
+        if prompt_role == "analyzer_injection":
+            role = "analyzer_directive"
+        role_state = "verified" if role != "unknown" else "unknown"
         relation_state = "verified" if relation_verified else "candidate"
+        semantic_status = (semantic_context_status(raw, material_text,
+                           relation_verified=relation_verified) if group == "toolchain" else None)
         attribution_eligible = bool(
             group in {"toolchain", "prompt"}
             and relation_verified and role_state == "verified" and role == "application"
+            and (group != "toolchain" or semantic_status == "static_call_verified")
+            and (group != "prompt" or prompt_role == "program_prompt")
         )
         fact = {
             "fact_id": _fact_id(group, raw, ids), "signal_group": group,
             "raw_value": raw, "normalized_value": normalized,
             "source_unit_ids": ids,
-            "source_location": {"unit_id": first.unit_id, "line": source_line,
-                                "unit_char_offset": char_offset},
+            "source_location": source_location,
             "evidence_text_hash": "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest(),
             "discovery_method": "llm",
             "verification_status": "relation_verified" if relation_verified else "location_verified",
@@ -143,6 +210,9 @@ def _validate_facts(
             "attribution_eligible": attribution_eligible,
             # A model cannot mark its own interpretation as human-reviewed.
             "semantic_review_status": "needs_review",
+            "semantic_confirmation_status": semantic_status,
+            "prompt_role": prompt_role,
+            "proposed_prompt_role": candidate.get("prompt_role") if group == "prompt" else None,
             "limitations": limitations,
             "role": role,
             "proposed_role": proposed_role,
@@ -241,6 +311,8 @@ def run_static_analysis(
         "index_status": index.status, "material_artifact": str(material_path.resolve()),
         "coverage": {"indexed_units": len(index.units), "screened_units": 0,
                      "cached_units": 0, "failed_units": 0, "unprocessed_unit_ids": [],
+                     "string_units_indexed": sum(_string_weight(unit) for unit in index.units),
+                     "string_units_screened": 0, "string_units_failed": 0,
                      "recovery_coverage": recovery_coverage,
                      "material_coverage": material_coverage,
                      "relation_coverage": relation_coverage},
@@ -257,13 +329,15 @@ def run_static_analysis(
     if llm_client is None:
         run["limitations"].append("sample_llm_disabled")
         run["coverage"]["unprocessed_unit_ids"] = [unit.unit_id for unit in index.units]
+        run["coverage"]["string_analysis_rate"] = 0.0 if run["coverage"]["string_units_indexed"] else None
+        run["coverage"]["material_analysis_rate"] = 0.0 if index.units else None
         return {"materials": index.public_summary(), "run": run}
     query_service = StaticQueryService(index)
     start = time.monotonic()
     batches = _batch_units(index.units, max_input_tokens)
     processed_units = 0
     for batch in batches:
-        payloads = [unit.as_dict(include_content=True) for unit in batch]
+        payloads = [_llm_unit_payload(unit) for unit in batch]
         estimate = _estimate_tokens(json.dumps(payloads, ensure_ascii=False))
         if run["budget"]["requests"] >= max_requests:
             run["status"] = "partial"
@@ -274,6 +348,7 @@ def run_static_analysis(
             run["budget"]["requests"] += 1
             run["budget"]["estimated_tokens_used"] += estimate
             run["coverage"]["screened_units"] += len(batch)
+            run["coverage"]["string_units_screened"] += sum(_string_weight(unit) for unit in batch)
             for key, value in (response.get("usage") or {}).items():
                 if isinstance(value, (int, float)):
                     run["budget"]["provider_usage"][key] = run["budget"]["provider_usage"].get(key, 0) + value
@@ -313,6 +388,7 @@ def run_static_analysis(
             run["rejected_facts"].extend(rejected)
         except Exception as exc:
             run["coverage"]["failed_units"] += len(batch)
+            run["coverage"]["string_units_failed"] += sum(_string_weight(unit) for unit in batch)
             run["errors"].append({"unit_ids": [unit.unit_id for unit in batch],
                                   "error": f"{type(exc).__name__}: {exc}"})
             run["status"] = "partial"
@@ -320,6 +396,15 @@ def run_static_analysis(
             processed_units += len(batch)
     if run["errors"] and run["coverage"]["screened_units"] == 0:
         run["status"] = "failed"
+    total_strings = run["coverage"]["string_units_indexed"]
+    run["coverage"]["string_analysis_rate"] = (
+        round(run["coverage"]["string_units_screened"] / total_strings, 6)
+        if total_strings else None
+    )
+    run["coverage"]["material_analysis_rate"] = (
+        round(run["coverage"]["screened_units"] / len(index.units), 6)
+        if index.units else None
+    )
     if llm_client is not None and hasattr(llm_client, "transfer_metadata"):
         run["llm_transfer"] = llm_client.transfer_metadata()
     run["elapsed_seconds"] = round(time.monotonic() - start, 4)

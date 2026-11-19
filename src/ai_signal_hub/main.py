@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import re
+import io
 from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
@@ -17,14 +19,25 @@ from .database import Database
 from .legacy import LegacyAdapters, LegacyUnavailable
 from .repository import Repository
 from .report_llm import ReportModelConfigurationError, ReportModelError
+from .security_events import SecurityEventLibrary
 from .services import HubService
 from .storage import UploadTooLarge
+
+
+logger = logging.getLogger("ai_signal_hub.api")
+
+
+def _internal_error(operation: str, exc: Exception) -> HTTPException:
+    # Log the full exception server-side; do not echo internals to clients.
+    logger.exception("%s: %s", operation, exc)
+    return HTTPException(status_code=500, detail=f"{operation}，详情请查看服务端日志")
 
 
 database = Database(settings.database_path)
 repository = Repository(database)
 legacy = LegacyAdapters(settings)
 service = HubService(settings, repository, legacy)
+security_events = SecurityEventLibrary(database)
 
 
 @asynccontextmanager
@@ -40,6 +53,102 @@ app = FastAPI(
     description="恶意样本纯静态 AI 信号、报告事件证据、交叉验证、知识库、统计与报告生成。",
     lifespan=lifespan,
 )
+
+
+class SecurityEventPayload(BaseModel):
+    event_id: str | None = None
+    event_date: str | None = None
+    name: str
+    event_types: list[str] = []
+    summary: str | None = None
+    source: str | None = None
+    sample_text: str | None = None
+    sample_entries: list[dict[str, str]] | None = None
+    status: str | None = None
+    first_seen_at: str | None = None
+
+
+@app.get("/api/v1/security-events", tags=["security-events"])
+def list_security_events(
+    report_date_from: str | None = None,
+    report_date_to: str | None = None,
+    event_type: str | None = None,
+    has_samples: bool | None = None,
+    first_seen_from: str | None = None,
+    first_seen_to: str | None = None,
+    q: str | None = None,
+    limit: int = Query(default=100, le=500),
+    offset: int = 0,
+):
+    return security_events.list(
+        report_date_from=report_date_from, report_date_to=report_date_to,
+        event_type=event_type, has_samples=has_samples,
+        first_seen_from=first_seen_from, first_seen_to=first_seen_to,
+        q=q, limit=limit, offset=offset,
+    )
+
+
+@app.get("/api/v1/security-events/{event_id}", tags=["security-events"])
+def get_security_event(event_id: str):
+    item = security_events.get(event_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="事件不存在")
+    return item
+
+
+@app.post("/api/v1/security-events", tags=["security-events"], status_code=201)
+def create_security_event(payload: SecurityEventPayload):
+    try:
+        return security_events.create(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise _internal_error("事件创建失败", exc) from exc
+
+
+@app.put("/api/v1/security-events/{event_id}", tags=["security-events"])
+def update_security_event(event_id: str, payload: SecurityEventPayload):
+    try:
+        return security_events.update(event_id, payload.model_dump())
+    except KeyError:
+        raise HTTPException(status_code=404, detail="事件不存在") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise _internal_error("事件更新失败", exc) from exc
+
+
+@app.delete("/api/v1/security-events/{event_id}", tags=["security-events"])
+def delete_security_event(event_id: str):
+    try:
+        security_events.delete(event_id)
+        return {"deleted": True, "event_id": event_id}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="事件不存在") from None
+
+
+@app.post("/api/v1/security-events/import", tags=["security-events"])
+async def import_security_events_upload(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="请上传 .xlsx/.xls 表格文件（需包含“事件库”工作表）")
+    content = await file.read()
+    if len(content) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail="表格文件过大")
+    try:
+        return security_events.import_excel(io.BytesIO(content))
+    except Exception as exc:
+        raise _internal_error("事件库导入失败，请确认表格包含“事件库”工作表及规定列", exc) from exc
+
+
+@app.post("/api/v1/security-events/import-xlsx", tags=["security-events"])
+def import_security_events():
+    path = settings.security_event_xlsx
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"未找到事件库文件：{path.name}（可用 AI_SECURITY_EVENT_XLSX 指定路径）")
+    try:
+        return security_events.import_xlsx(path)
+    except Exception as exc:
+        raise _internal_error("事件库导入失败", exc) from exc
 
 
 class CrossValidationRequest(BaseModel):
@@ -93,10 +202,12 @@ def analyze_sample(
         return service.analyze_sample(file.file, file.filename, source_case)
     except UploadTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LegacyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"样本静态分析失败: {exc}") from exc
+        raise _internal_error("样本静态分析失败", exc) from exc
 
 
 @app.get("/api/v1/samples", tags=["samples"])
@@ -135,8 +246,10 @@ def reanalyze_sample(sha256: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"样本重新分析失败: {exc}") from exc
+        raise _internal_error("样本重新分析失败", exc) from exc
 
 
 @app.get("/api/v1/samples/{sha256}/associations", tags=["samples"])
@@ -152,12 +265,25 @@ def get_sample_associations(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.get("/api/v1/samples/{sha256}/style-neighbors", tags=["samples"])
+def get_sample_style_neighbors(
+    sha256: str, limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    include_unmatched: bool = False,
+) -> dict:
+    if not re.fullmatch(r"[a-fA-F0-9]{64}", sha256):
+        raise HTTPException(status_code=400, detail="无效 SHA-256")
+    try:
+        return service.similarity.style_neighbors(sha256.lower(), limit, include_unmatched)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.post("/api/v1/samples/recluster", tags=["samples"])
 def recluster_samples() -> dict:
     try:
         return service.similarity.rebuild()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"样本聚类失败: {exc}") from exc
+        raise _internal_error("样本聚类失败", exc) from exc
 
 
 @app.post("/api/v1/reports/analyze", tags=["reports"])
@@ -189,7 +315,7 @@ def analyze_report(
     except LegacyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"报告抽取失败: {exc}") from exc
+        raise _internal_error("报告抽取失败", exc) from exc
 
 
 @app.get("/api/v1/reports", tags=["reports"])
@@ -258,7 +384,7 @@ def analyze_case(
     except LegacyUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"联合分析失败: {exc}") from exc
+        raise _internal_error("联合分析失败", exc) from exc
 
 
 @app.get("/api/v1/analysis-cases", tags=["analysis-cases"])
@@ -286,7 +412,7 @@ def cross_validate(request: CrossValidationRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"交叉验证失败: {exc}") from exc
+        raise _internal_error("交叉验证失败", exc) from exc
 
 
 @app.post("/api/v1/analysis-cases/{case_id}/cross-validate", tags=["validation"])
@@ -298,7 +424,7 @@ def cross_validate_case(case_id: str, request: CaseCrossValidationRequest) -> di
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"案例交叉验证失败: {exc}") from exc
+        raise _internal_error("案例交叉验证失败", exc) from exc
 
 
 @app.get("/api/v1/knowledge/search", tags=["knowledge"])
@@ -311,7 +437,7 @@ def import_legacy(request: LegacyImportRequest = Body(default_factory=LegacyImpo
     try:
         return service.import_legacy(**request.model_dump())
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"旧项目导入失败: {exc}") from exc
+        raise _internal_error("旧项目导入失败", exc) from exc
 
 
 @app.patch("/api/v1/events/{event_id}/context", tags=["knowledge"])
@@ -346,7 +472,7 @@ def generate_report(request: GeneratedReportRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"统计报告生成失败: {exc}") from exc
+        raise _internal_error("统计报告生成失败", exc) from exc
 
 
 @app.get("/api/v1/generated-reports", tags=["generated-reports"])

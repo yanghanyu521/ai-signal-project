@@ -5,7 +5,7 @@ import streamlit as st
 from ui_utils.api import ApiError, api_base_url, post_file
 
 
-st.title("安全报告事件抽取")
+st.title(":material/article: 安全报告事件抽取")
 st.caption("支持 PDF、HTML、DOCX、Markdown 和 TXT。必须先指定样本/家族，只抽取报告中与该目标对应的事件。")
 
 with st.form("report_upload", border=True):

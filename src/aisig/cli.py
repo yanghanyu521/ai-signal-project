@@ -11,11 +11,12 @@ from .classify import classify
 from .apk_recovery import is_apk, merge_apk_features, recover_and_analyze_apk
 from .code_style import analyze_code_style
 from .ingest import collect_metadata
-from .pyinstaller_recovery import is_pyinstaller, merge_recovered_features, recover_and_analyze_pyinstaller
+from .pyinstaller_recovery import is_pyinstaller
 from .prompt import extract_prompt_features
 from .report import write_artifacts
 from .string_extract import extract_strings, source_text
 from .toolchain import extract_python_call_evidence, extract_toolchain
+from ai_signal_hub.stylometry import build_code_generation_signals
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 COMPONENT_ROOT = PROJECT_ROOT / "components" / "ai_signal_demo"
@@ -50,10 +51,11 @@ def analyze(sample: Path, out: Path, limits: Path, rules: Path) -> None:
             metadata["source_encoding"] = encoding
         code_style = analyze_code_style(text, metadata["language"], metadata["recoverability"])
         recovery: dict[str, Any] = {"pyinstaller": {"status": "not_detected"}, "apk": {"status": "not_detected"}}
-        if config.get("pyinstaller_recovery_enabled", True) and is_pyinstaller(strings, data, toolchain):
-            recovered = recover_and_analyze_pyinstaller(sample, config, rule_set)
-            recovery["pyinstaller"] = {key: value for key, value in recovered.items() if key != "features"}
-            toolchain, prompt, code_style = merge_recovered_features(toolchain, prompt, code_style, recovered)
+        if is_pyinstaller(strings, data, toolchain):
+            # v0.8 binary path is limited to static strings and bounded
+            # container members. Never launch pyinstxtractor/pycdc even if a
+            # legacy limits file still has the old recovery switch enabled.
+            recovery["pyinstaller"] = {"status": "disabled_v08_binary_strings_only"}
         if config.get("apk_member_scan_enabled", True) and is_apk(sample, metadata):
             recovered_apk = recover_and_analyze_apk(sample, config, rule_set)
             recovery["apk"] = {key: value for key, value in recovered_apk.items() if key != "features"}
@@ -65,7 +67,14 @@ def analyze(sample: Path, out: Path, limits: Path, rules: Path) -> None:
         strings, toolchain, prompt, code_style = [], {"evidence": []}, {"embedded_prompts": [], "structural_features": {}, "special_tokens": []}, {"status": "unavailable", "representation": "unknown", "metrics": {}, "ai_generated_detection": {"status": "not_supported", "heuristic_score": None}}
         recovery = {"pyinstaller": {"status": "not_run"}, "apk": {"status": "not_run"}}
         classification = {"llm_involvement": {"label": "unknown", "confidence": 0.0}, "model_attribution": {"vendor": None, "family": "unknown", "model": None, "decision_method": "unknown", "confidence": 0.0}, "evidence_summary": []}
-    result = {"schema_version": "0.2", "sample": metadata, "features": {"toolchain": toolchain, "prompt": prompt, "code_style": code_style, "recovery": recovery}, "classification": classification, "errors": errors}
+    code_generation = build_code_generation_signals(
+        text if not errors else None, metadata.get("language"), metadata.get("recoverability"),
+        metadata["sha256"],
+    )
+    result = {"schema_version": "0.4", "sample": metadata, "features": {
+        "toolchain": toolchain, "prompt": prompt, "code_style": code_style,
+        "code_generation_signals": code_generation, "facts": [], "recovery": recovery,
+    }, "classification": classification, "errors": errors}
     write_artifacts(out, result, strings, COMPONENT_ROOT / "schemas" / "result.schema.json")
     print(json.dumps({"sha256": metadata["sha256"], "out": str(out), "classification": classification}, ensure_ascii=False))
 
